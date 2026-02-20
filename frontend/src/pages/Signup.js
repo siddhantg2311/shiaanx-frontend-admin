@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
 import '../styles/Signup.css';
 
 function Signup() {
   const navigate = useNavigate();
+  const { register } = useAuth();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -11,6 +14,7 @@ function Signup() {
     password: '',
     confirmPassword: ''
   });
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     setFormData({
@@ -19,10 +23,31 @@ function Signup() {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // No backend validation for now - any entry takes to home
-    navigate('/home');
+    if (formData.password !== formData.confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await register({
+        name: `${formData.firstName} ${formData.lastName}`,
+        email: formData.email,
+        password: formData.password
+      });
+      toast.success(result.message || 'Admin account created successfully! Please verify email if required.');
+      // Admin usually doesn't have OTP in this flow or it might. 
+      // Assuming generic flow for now.
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000);
+    } catch (err) {
+      toast.error(err.message || 'Registration failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -97,7 +122,9 @@ function Signup() {
             />
           </div>
           
-          <button type="submit" className="signup-btn">Create Account</button>
+          <button type="submit" className="signup-btn" disabled={loading}>
+            {loading ? 'Creating...' : 'Create Account'}
+          </button>
         </form>
         
         <div className="signup-footer">

@@ -1,185 +1,227 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FiMenu, FiHome, FiUsers, FiShoppingBag, FiMessageSquare, FiUser, FiBell, FiSettings, FiPackage, FiTrendingUp } from 'react-icons/fi';
+import React, { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { FiArrowLeft, FiShoppingBag, FiPackage, FiFileText, FiClock, FiTruck, FiEdit2 } from 'react-icons/fi';
+import orderService from '../services/orderService';
+import toast from 'react-hot-toast';
 import '../styles/ViewDetails.css';
 
 function ViewDetails() {
+  const { id } = useParams();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
-  };
+  useEffect(() => {
+    const fetchOrderDetails = async () => {
+      try {
+        const data = await orderService.getDetails(id);
+        setOrder(data);
+      } catch (err) {
+        toast.error(err.message || 'Failed to fetch order details');
+        navigate('/orders');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchOrderDetails();
+  }, [id, navigate]);
 
-  const toggleSettings = () => {
-    setSettingsOpen(!settingsOpen);
-  };
-
-  const handleLogout = () => {
-    navigate('/login');
-  };
+  if (loading) return <div style={{ padding: '2rem' }}>Loading order details...</div>;
+  if (!order) return <div style={{ padding: '2rem' }}>Order not found</div>;
 
   return (
-    <div className="view-details-container">
-      {/* Top Navigation Bar */}
-      <div className="topbar">
-        <button className="menu-btn" onClick={toggleSidebar}>
-          <FiMenu size={24} />
+    <div className="view-details-content" style={{ padding: '2rem' }}>
+      <div className="page-header" style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
+        <button onClick={() => navigate('/orders')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+          <FiArrowLeft size={24} />
         </button>
-        <h2 className="page-title">Order Details</h2>
-        <div className="topbar-right">
-          <div className="topbar-icons">
-            <button className="icon-btn">
-              <FiUser size={20} />
+        <div className="details-header" style={{ border: 'none', marginBottom: 0, paddingBottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+          <h2>Order Details</h2>
+          {order.status === 'PROCESSING' && (
+            <button 
+              className="btn-secondary" 
+              onClick={() => navigate(`/orders/${id}/edit`)}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.25rem' }}
+            >
+              <FiEdit2 size={18} /> Edit Order
             </button>
-            <button className="icon-btn">
-              <FiBell size={20} />
-            </button>
-            <button className="icon-btn" onClick={toggleSettings}>
-              <FiSettings size={20} />
-            </button>
-            {settingsOpen && (
-              <div className="settings-dropdown">
-                <button className="logout-btn" onClick={handleLogout}>
-                  Logout
-                </button>
+          )}
+        </div>
+      </div>
+
+      <div className="order-id-display">
+        <FiShoppingBag size={20} color="var(--primary)" />
+        <span style={{ fontWeight: 800 }}>ORD #{order.order_number}</span>
+      </div>
+
+      <div className="details-layout">
+        <div className="left-column">
+          <div className="detail-section">
+            <h3 className="section-title"><FiShoppingBag size={20} /> Project Specifications</h3>
+            <div className="data-grid">
+              <div className="data-item">
+                <label>Technology</label>
+                <span>{order.processing_technology}</span>
               </div>
+              <div className="data-item">
+                <label>Quantity</label>
+                <span>{order.quantity} Units</span>
+              </div>
+              <div className="data-item">
+                <label>Tracking ID</label>
+                <span style={{ color: 'var(--primary)' }}>{order.tracking_number || 'Awaiting Logistics'}</span>
+              </div>
+              <div className="data-item">
+                <label>Expected Arrival</label>
+                <span>{order.expected_delivery_date ? new Date(order.expected_delivery_date).toLocaleDateString() : 'To be determined'}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="detail-section">
+            <h3 className="section-title"><FiPackage size={20} /> Client Information</h3>
+            <div className="data-grid">
+              <div className="data-item">
+                <label>Customer Name</label>
+                <span>{order.customer?.name}</span>
+              </div>
+              <div className="data-item">
+                <label>Inquiry Origin</label>
+                <span>{order.enquiry?.enquiry_number || 'Direct Order'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="right-column">
+          <div className="amount-card">
+            <div className="amount-label">Final Investment</div>
+            <div className="amount-value">₹{order.final_amount}</div>
+          </div>
+
+          <div className="detail-section">
+            <h3 className="section-title"><FiFileText size={20} /> Associated Documents</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div className="info-files" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {order.enquiry?.documents && order.enquiry.documents.filter(doc => doc.document_type !== 'ORDER_DOCUMENT').length > 0 ? (
+                  order.enquiry.documents
+                    .filter(doc => doc.document_type !== 'ORDER_DOCUMENT')
+                    .map((doc, index) => (
+                    <div key={index} className="file-item-card" style={{ 
+                      padding: '0.75rem 1rem', 
+                      backgroundColor: 'white', 
+                      borderRadius: '8px', 
+                      border: '1px solid var(--border)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', overflow: 'hidden' }}>
+                        <div style={{ padding: '0.5rem', backgroundColor: 'var(--background)', borderRadius: '6px', color: 'var(--primary)' }}>
+                          <FiFileText size={18} />
+                        </div>
+                        <div style={{ overflow: 'hidden' }}>
+                          <div style={{ 
+                            fontSize: '0.9rem', 
+                            fontWeight: 600, 
+                            color: 'var(--text-main)',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}>
+                            {doc.file_name}
+                          </div>
+                          {doc.uploader && (
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                              Uploaded by {doc.uploader.name}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <a 
+                        href={`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/${doc.file_path}`} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="btn-view-file"
+                        style={{ 
+                          fontSize: '0.8rem', 
+                          fontWeight: 700, 
+                          color: 'var(--primary)',
+                          textDecoration: 'none',
+                          padding: '0.4rem 0.8rem',
+                          borderRadius: '6px',
+                          border: '1px solid var(--primary)',
+                          backgroundColor: 'transparent',
+                          transition: 'all 0.2s ease',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        View
+                      </a>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ padding: '1.5rem', backgroundColor: 'var(--background)', borderRadius: '12px', border: '1px dotted var(--border)', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                    No enquiry documents found.
+                  </div>
+                )}
+              </div>
+
+              {order.remarks && (
+                <div style={{ padding: '1rem', backgroundColor: '#fffaf0', borderRadius: '12px', border: '1px solid #feebc8', fontSize: '0.9rem', color: '#744210' }}>
+                  <strong>Admin Notes:</strong> {order.remarks}
+                </div>
+              )}
+              
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0, fontStyle: 'italic' }}>
+                Files shown here were uploaded during the enquiry phase.
+              </p>
+            </div>
+          </div>
+
+          <button 
+            className="btn-confirm" 
+            style={{ width: '100%', padding: '1.25rem', fontSize: '1.125rem' }}
+            onClick={() => navigate(`/orders/${id}/track`)}
+          >
+            Open Live Timeline
+          </button>
+        </div>
+      </div>
+
+      <div className="status-history-section">
+        <h3 className="section-title" style={{ border: 'none' }}><FiClock size={20} /> Status History</h3>
+        <div className="history-timeline">
+            {order.statusHistory && order.statusHistory.length > 0 ? (
+                [...order.statusHistory]
+                    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                    .map((history, index) => (
+                    <div key={history.id} className={`history-item ${index === 0 ? 'active' : ''}`}>
+                        <div className="history-dot"></div>
+                        <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontWeight: 800, color: index === 0 ? 'var(--primary)' : 'var(--text-main)' }}>
+                                    {history.to_status.replace(/_/g, ' ')}
+                                </span>
+                                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                                    {new Date(history.createdAt).toLocaleString()}
+                                </span>
+                            </div>
+                            <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.9rem', color: 'var(--text-muted)' }}>{history.change_reason || 'Manual status transition'}</p>
+                            {history.changer && (
+                                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-main)', display: 'block', marginTop: '0.5rem' }}>
+                                    Verified by {history.changer.name}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                ))
+            ) : (
+                <div style={{ padding: '1.5rem', backgroundColor: 'var(--background)', borderRadius: '12px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    Initial processing started on {new Date(order.createdAt).toLocaleDateString()}
+                </div>
             )}
-          </div>
-          <img src={process.env.PUBLIC_URL + '/logoimg.png'} alt="ShiaanX" className="topbar-logo-img" />
-        </div>
-      </div>
-
-      {/* Sidebar */}
-      <div className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
-        <div className="sidebar-header">
-          <img src={process.env.PUBLIC_URL + '/logoimg.png'} alt="ShiaanX" className="sidebar-logo" />
-        </div>
-        
-        <nav className="sidebar-nav">
-          <div className="nav-item" onClick={() => { navigate('/home'); setSidebarOpen(false); }}>
-            <FiHome size={20} />
-            <span>Dashboard</span>
-          </div>
-          
-          <div className="nav-item" onClick={() => { navigate('/users'); setSidebarOpen(false); }}>
-            <FiUsers size={20} />
-            <span>User Management</span>
-          </div>
-          
-          <div className="nav-item" onClick={() => { navigate('/enquiries'); setSidebarOpen(false); }}>
-            <FiMessageSquare size={20} />
-            <span>All Enquiries</span>
-          </div>
-          
-          <div className="nav-item" onClick={() => { navigate('/orders'); setSidebarOpen(false); }}>
-            <FiShoppingBag size={20} />
-            <span>All Orders</span>
-          </div>
-          
-          <div className="nav-item" onClick={() => { navigate('/vendors'); setSidebarOpen(false); }}>
-            <FiPackage size={20} />
-            <span>Vendor Management</span>
-          </div>
-          
-          <div className="nav-item" onClick={() => { navigate('/analytics'); setSidebarOpen(false); }}>
-            <FiTrendingUp size={20} />
-            <span>Analytics</span>
-          </div>
-        </nav>
-      </div>
-
-      {/* Overlay when sidebar is open */}
-      {sidebarOpen && <div className="overlay" onClick={toggleSidebar}></div>}
-
-      {/* Main Content */}
-      <div className="main-content">
-        <div className="content-wrapper">
-          {/* Left Column */}
-          <div className="left-column">
-            <div className="item-id-section">
-              <span className="item-label">Item ID:</span>
-              <span className="item-value">#123456</span>
-            </div>
-
-            <div className="field-section">
-              <label>Customer:</label>
-              <div className="blue-box">Nandini Kumar</div>
-            </div>
-
-            <div className="field-section">
-              <label>Processing Technology:</label>
-              <div className="blue-box">CNC Machining</div>
-            </div>
-
-            <div className="field-section">
-              <label>Material:</label>
-              <div className="blue-box">Aluminum 6061</div>
-            </div>
-
-            <div className="field-section">
-              <label>Finishes:</label>
-              <div className="blue-box">Anodized Blue</div>
-            </div>
-
-            <div className="field-section">
-              <label>Customer Remarks:</label>
-              <div className="blue-box">Please ensure tight tolerances on mounting holes. Quality inspection required.</div>
-            </div>
-
-            <div className="field-section">
-              <label>Quantity:</label>
-              <div className="blue-box">5 units</div>
-            </div>
-
-            <div className="field-section">
-              <label>Assigned Vendor:</label>
-              <div className="blue-box">ABC Manufacturing Ltd.</div>
-            </div>
-
-            <div className="order-info">
-              <p>Order placed on: <strong>11th Jan 2025</strong></p>
-            </div>
-
-            <button className="view-timeline-btn" onClick={() => navigate('/track-order')}>View Timeline</button>
-          </div>
-
-          {/* Right Column */}
-          <div className="right-column">
-            <div className="documents-box">
-              <h3>Customer Uploaded Documents (Click to View)</h3>
-              <div className="document-link">&gt; design_specs.pdf</div>
-              <div className="document-link">&gt; cad_file_v1.dwg</div>
-              <div className="document-link">&gt; reference_image.jpg</div>
-              <div className="document-link">&gt; tolerance_sheet.pdf</div>
-              <div className="document-link">&gt; material_certificate.pdf</div>
-            </div>
-
-            <div className="field-section">
-              <label>Shipping Address:</label>
-              <div className="blue-box">
-Plot No. 47, 3rd Floor,<br />
-Industrial Estate Phase II,<br />
-Near Metro Pillar 218, Okhla Industrial Area,<br />
-New Delhi – 110020,<br />
-Delhi, India</div>
-            </div>
-
-            <div className="field-section">
-              <label>Bill / Extra Details:</label>
-              <div className="blue-box">Rush order. Please expedite processing. Contact before dispatch.</div>
-            </div>
-
-            <div className="field-section">
-              <label>Total Amount:</label>
-              <div className="blue-box">₹24,999.00</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="tip-section">
-          <p>Admin Note: This view shows complete order information submitted by the customer. To see vendor updates and timeline, navigate to Track Timeline.</p>
         </div>
       </div>
     </div>

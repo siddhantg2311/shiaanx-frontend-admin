@@ -1,232 +1,302 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiMenu, FiHome, FiUsers, FiShoppingBag, FiMessageSquare, FiPackage, FiTruck, FiSearch, FiUser, FiBell, FiSettings, FiTrendingUp } from 'react-icons/fi';
+import { FiShoppingBag, FiPackage, FiTruck, FiSearch, FiEdit2, FiPlus } from 'react-icons/fi';
+import orderService from '../services/orderService';
+import toast from 'react-hot-toast';
+import ConfirmationModal from '../components/ui/ConfirmationModal';
 import '../styles/Orders.css';
 
 function Orders() {
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [pagination, setPagination] = useState({ total: 0, pages: 0, currentPage: 1 });
+  const [openDropdownOrderId, setOpenDropdownOrderId] = useState(null);
+  const [modalState, setModalState] = useState({ 
+    isOpen: false, 
+    orderId: null, 
+    nextStatus: null 
+  });
 
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
-  };
-
-  const toggleSettings = () => {
-    setSettingsOpen(!settingsOpen);
-  };
-
-  const handleLogout = () => {
-    navigate('/login');
-  };
-
-  // Sample orders data
-  const orders = [
-    {
-      id: 'Item #19203',
-      user: 'Nandini Kumar',
-      product: 'Screw Driver',
-      quantity: 1,
-      total: 299.99,
-      date: '2026-02-02',
-      status: 'Delivered',
-      trackingId: 'TRK123456789',
-      vendor: 'ABC Manufacturing'
-    },
-    {
-      id: 'Item #18093',
-      user: 'Rahul Sharma',
-      product: 'Truck Component',
-      quantity: 2,
-      total: 149.98,
-      date: '2026-02-03',
-      status: 'In Transit',
-      trackingId: 'TRK987654321',
-      vendor: 'XYZ Industries'
-    },
-    {
-      id: 'Item #12394',
-      user: 'Priya Singh',
-      product: 'Maneuver Gear A',
-      quantity: 1,
-      total: 79.99,
-      date: '2026-02-04',
-      status: 'Processing',
-      trackingId: 'TRK456789123',
-      vendor: 'Tech Parts Ltd'
+  const fetchOrders = async (page = 1) => {
+    try {
+      setLoading(true);
+      const data = await orderService.list({ page, limit: 10 });
+      setOrders(data.items || []);
+      setPagination({
+          total: data.meta?.totalItems || 0,
+          pages: data.meta?.totalPages || 0,
+          currentPage: data.meta?.currentPage || 1
+      });
+    } catch (err) {
+      toast.error(err.message || 'Failed to fetch orders');
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  useEffect(() => {
+    const handleOutsideClick = () => setOpenDropdownOrderId(null);
+    window.addEventListener('click', handleOutsideClick);
+    return () => window.removeEventListener('click', handleOutsideClick);
+  }, []);
+
+  const handleConfirmStatusChange = async () => {
+    const { orderId, nextStatus } = modalState;
+    try {
+      await orderService.updateStatus(orderId, nextStatus, 'Status updated via interactive badge');
+      toast.success(`Status updated to ${nextStatus}`);
+      setModalState({ isOpen: false, orderId: null, nextStatus: null });
+      fetchOrders(pagination.currentPage);
+    } catch (err) {
+      toast.error(err.message || 'Failed to update status');
+      setModalState({ ...modalState, isOpen: false });
+    }
+  };
 
   const getStatusIcon = (status) => {
     switch(status) {
-      case 'Delivered':
+      case 'DELIVERED':
         return <FiPackage size={18} />;
-      case 'In Transit':
+      case 'SHIPPED':
+      case 'IN_TRANSIT':
         return <FiTruck size={18} />;
       default:
         return <FiShoppingBag size={18} />;
     }
   };
 
+  const filteredOrders = orders.filter(order => 
+    order.order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.processing_technology?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const stats = {
+    processing: orders.filter(o => o.status === 'PROCESSING').length,
+    transit: orders.filter(o => o.status === 'IN_TRANSIT' || o.status === 'SHIPPED').length,
+    delivered: orders.filter(o => o.status === 'DELIVERED').length
+  };
+
+  if (loading && orders.length === 0) return <div style={{ padding: '2rem' }}>Loading orders...</div>;
+
   return (
-    <div className="orders-container">
-      {/* Top Navigation Bar */}
-      <div className="topbar">
-        <button className="menu-btn" onClick={toggleSidebar}>
-          <FiMenu size={24} />
-        </button>
-        <div className="topbar-right">
-          <div className="topbar-icons">
-            <button className="icon-btn">
-              <FiUser size={20} />
-            </button>
-            <button className="icon-btn">
-              <FiBell size={20} />
-            </button>
-            <button className="icon-btn" onClick={toggleSettings}>
-              <FiSettings size={20} />
-            </button>
-            {settingsOpen && (
-              <div className="settings-dropdown">
-                <button className="logout-btn" onClick={handleLogout}>
-                  Logout
-                </button>
-              </div>
-            )}
-          </div>
-          <img src={process.env.PUBLIC_URL + '/logoimg.png'} alt="ShiaanX" className="topbar-logo-img" />
-        </div>
-      </div>
-
-      {/* Sidebar */}
-      <div className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
-        <div className="sidebar-header">
-          <img src={process.env.PUBLIC_URL + '/logoimg.png'} alt="ShiaanX" className="sidebar-logo" />
-        </div>
-        
-        <nav className="sidebar-nav">
-          <div className="nav-item" onClick={() => { navigate('/home'); setSidebarOpen(false); }}>
-            <FiHome size={20} />
-            <span>Dashboard</span>
-          </div>
-          
-          <div className="nav-item" onClick={() => { navigate('/users'); setSidebarOpen(false); }}>
-            <FiUsers size={20} />
-            <span>User Management</span>
-          </div>
-          
-          <div className="nav-item" onClick={() => { navigate('/enquiries'); setSidebarOpen(false); }}>
-            <FiMessageSquare size={20} />
-            <span>All Enquiries</span>
-          </div>
-          
-          <div className="nav-item active" onClick={() => { navigate('/orders'); setSidebarOpen(false); }}>
-            <FiShoppingBag size={20} />
-            <span>All Orders</span>
-          </div>
-          
-          <div className="nav-item" onClick={() => { navigate('/vendors'); setSidebarOpen(false); }}>
-            <FiPackage size={20} />
-            <span>Vendor Management</span>
-          </div>
-          
-          <div className="nav-item" onClick={() => { navigate('/analytics'); setSidebarOpen(false); }}>
-            <FiTrendingUp size={20} />
-            <span>Analytics</span>
-          </div>
-        </nav>
-      </div>
-
-      {/* Overlay when sidebar is open */}
-      {sidebarOpen && <div className="overlay" onClick={toggleSidebar}></div>}
-
-      {/* Main Content */}
-      <div className="main-content">
-        <div className="page-header">
-          <h1>All Orders</h1>
+    <div className="orders-content" style={{ padding: '2rem' }}>
+        <div className="page-header" style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h1 style={{ fontSize: '2rem', fontWeight: 700, color: '#2d3748' }}>All Orders</h1>
+          <button 
+            className="btn-primary" 
+            onClick={() => navigate('/orders/new')}
+            style={{ padding: '0.75rem 1.5rem' }}
+          >
+            <FiPlus size={20} /> New Order
+          </button>
         </div>
 
-        <div className="search-bar">
+        <div className="search-bar" style={{ marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem', backgroundColor: 'white', padding: '0.75rem 1rem', borderRadius: '10px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
           <FiSearch size={20} color="#999" />
-          <input type="text" placeholder="Search orders by ID, user, product, or vendor..." />
+          <input 
+            type="text" 
+            placeholder="Search orders by number, customer, technology..." 
+            style={{ border: 'none', outline: 'none', width: '100%', fontSize: '0.95rem' }}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
 
         <div className="orders-stats">
-          <div className="stat-card">
-            <div className="stat-icon processing">
+          <div className="stat-card" style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+            <div className="stat-icon processing" style={{ width: '48px', height: '48px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fef3c7', color: '#92400e' }}>
               <FiShoppingBag size={24} />
             </div>
             <div className="stat-info">
-              <span className="stat-value">1</span>
-              <span className="stat-label">Processing</span>
+              <span className="stat-value" style={{ display: 'block', fontSize: '1.5rem', fontWeight: 800 }}>{stats.processing}</span>
+              <span className="stat-label" style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-muted)' }}>Processing</span>
             </div>
           </div>
           
-          <div className="stat-card">
-            <div className="stat-icon transit">
+          <div className="stat-card" style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+            <div className="stat-icon transit" style={{ width: '48px', height: '48px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#dbeafe', color: '#1e40af' }}>
               <FiTruck size={24} />
             </div>
             <div className="stat-info">
-              <span className="stat-value">1</span>
-              <span className="stat-label">In Transit</span>
+              <span className="stat-value" style={{ display: 'block', fontSize: '1.5rem', fontWeight: 800 }}>{stats.transit}</span>
+              <span className="stat-label" style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-muted)' }}>In Transit</span>
             </div>
           </div>
           
-          <div className="stat-card">
-            <div className="stat-icon delivered">
+          <div className="stat-card" style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+            <div className="stat-icon delivered" style={{ width: '48px', height: '48px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#d1fae5', color: '#065f46' }}>
               <FiPackage size={24} />
             </div>
             <div className="stat-info">
-              <span className="stat-value">1</span>
-              <span className="stat-label">Delivered</span>
+              <span className="stat-value" style={{ display: 'block', fontSize: '1.5rem', fontWeight: 800 }}>{stats.delivered}</span>
+              <span className="stat-label" style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-muted)' }}>Delivered</span>
             </div>
           </div>
         </div>
 
-        <div className="orders-list">
-          {orders.map(order => (
-            <div key={order.id} className="order-card">
-              <div className="order-header">
+        <div className="orders-list" style={{ display: 'grid', gap: '1.5rem' }}>
+          {filteredOrders.map(order => (
+            <div key={order.id} className="order-card" style={{ backgroundColor: 'white', padding: '1.75rem', borderRadius: '20px' }}>
+              <div className="order-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '1.25rem' }}>
                 <div className="order-id-section">
-                  <span className="order-id">{order.id}</span>
-                  <span className="order-date">{order.date}</span>
+                  <span className="order-id" style={{ fontWeight: 800, fontSize: '1.125rem', color: 'var(--text-main)' }}>ORD #{order.order_number}</span>
+                  <span className="order-date" style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>{new Date(order.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                 </div>
-                <span className={`status-badge ${order.status.toLowerCase().replace(' ', '-')}`}>
-                  {getStatusIcon(order.status)}
-                  {order.status}
-                </span>
+                <div style={{ position: 'relative' }}>
+                  {(() => {
+                    const validTransitions = {
+                        'PROCESSING': ['IN_TRANSIT', 'CANCELLED'],
+                        'IN_TRANSIT': ['DELIVERED', 'CANCELLED'],
+                        'DELIVERED': [],
+                        'CANCELLED': []
+                    };
+                    const availableNext = validTransitions[order.status] || [];
+                    const isDropdownOpen = openDropdownOrderId === order.id;
+
+                    return (
+                      <>
+                        <div 
+                          className={`status-badge ${order.status?.toLowerCase().replace(/_/g, '-')} ${availableNext.length > 0 ? 'interactive' : ''}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (availableNext.length > 0) {
+                              setOpenDropdownOrderId(isDropdownOpen ? null : order.id);
+                            }
+                          }}
+                          style={{ 
+                              padding: '0.6rem 1.25rem', 
+                              borderRadius: '12px', 
+                              fontSize: '0.75rem', 
+                              fontWeight: 800,
+                              minWidth: '120px',
+                              textAlign: 'center',
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                              cursor: availableNext.length > 0 ? 'pointer' : 'default',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '0.5rem',
+                              transition: 'all 0.2s ease',
+                              border: isDropdownOpen ? '2px solid var(--primary)' : '2px solid transparent'
+                          }}
+                        >
+                          {order.status?.replace(/_/g, ' ')}
+                          {availableNext.length > 0 && <FiEdit2 size={12} style={{ opacity: 0.6 }} />}
+                        </div>
+
+                        {isDropdownOpen && (
+                          <div className="custom-dropdown-menu" style={{
+                            position: 'absolute',
+                            top: '100%',
+                            right: 0,
+                            marginTop: '0.5rem',
+                            backgroundColor: 'white',
+                            borderRadius: '12px',
+                            boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+                            zIndex: 100,
+                            minWidth: '180px',
+                            border: '1px solid var(--border)',
+                            overflow: 'hidden'
+                          }}>
+                            <div style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', backgroundColor: '#f9fafb' }}>
+                              MOVE TO...
+                            </div>
+                            {availableNext.map(nextStatus => (
+                              <div 
+                                key={nextStatus}
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  setOpenDropdownOrderId(null);
+                                  setModalState({
+                                    isOpen: true,
+                                    orderId: order.id,
+                                    nextStatus: nextStatus
+                                  });
+                                }}
+                                className="dropdown-item"
+                                style={{
+                                  padding: '0.875rem 1rem',
+                                  fontSize: '0.875rem',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.75rem',
+                                  color: 'var(--text-main)'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                              >
+                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: nextStatus === 'CANCELLED' ? '#ef4444' : 'var(--primary)' }}></span>
+                                {nextStatus.replace(/_/g, ' ')}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
               
-              <div className="order-details">
+              <div className="order-details" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '2rem' }}>
                 <div className="product-info">
-                  <h3>{order.product}</h3>
-                  <p>User: {order.user}</p>
-                  <p>Quantity: {order.quantity}</p>
-                  <p>Vendor: {order.vendor}</p>
-                  <p className="tracking">Tracking: {order.trackingId}</p>
+                  <h3 style={{ margin: '0 0 0.75rem 0', fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)' }}>{order.processing_technology}</h3>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', color: 'var(--text-muted)' }}>
+                    <p style={{ margin: 0, fontSize: '0.925rem' }}><strong>Customer:</strong> <span style={{ color: 'var(--text-main)' }}>{order.customer?.name}</span></p>
+                    <p style={{ margin: 0, fontSize: '0.925rem' }}><strong>Quantity:</strong> <span style={{ color: 'var(--text-main)' }}>{order.quantity}</span></p>
+                    <p className="tracking" style={{ margin: 0, fontSize: '0.925rem' }}><strong>Tracking:</strong> <span style={{ color: 'var(--primary)' }}>{order.tracking_number || 'Not Assigned'}</span></p>
+                  </div>
                 </div>
-                <div className="order-price">
-                  <span className="price-label">Total</span>
-                  <span className="price-value">${order.total}</span>
+                <div className="order-price" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center' }}>
+                  <span className="price-label" style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: 500 }}>Total Amount</span>
+                  <span className="price-value" style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.025em' }}>₹{order.final_amount}</span>
                 </div>
               </div>
               
-              <div className="order-actions">
-                <button className="action-btn secondary" onClick={() => navigate('/track-order')}>Track Timeline</button>
-                <button className="action-btn primary" onClick={() => navigate('/view-details')}>View Details</button>
+              <div className="order-actions" style={{ 
+                display: 'grid', 
+                gridTemplateColumns: order.status === 'PROCESSING' ? '1fr 1fr 1fr' : '1fr 1fr', 
+                gap: '1rem', 
+                marginTop: '1.75rem', 
+                borderTop: '1px solid var(--border)', 
+                paddingTop: '1.25rem' 
+              }}>
+                <button className="action-btn secondary" style={{ padding: '0.875rem', borderRadius: '12px', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem' }} onClick={() => navigate(`/orders/${order.id}/track`)}>Timeline</button>
+                {order.status === 'PROCESSING' && (
+                  <button className="action-btn secondary" style={{ padding: '0.875rem', borderRadius: '12px', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem' }} onClick={() => navigate(`/orders/${order.id}/edit`)}>Edit</button>
+                )}
+                <button className="action-btn primary" style={{ padding: '0.875rem', borderRadius: '12px', color: 'white', fontWeight: 700, cursor: 'pointer', border: 'none', fontSize: '0.85rem' }} onClick={() => navigate(`/orders/${order.id}`)}>Details</button>
               </div>
             </div>
           ))}
         </div>
 
-        {orders.length === 0 && (
-          <div className="empty-state">
-            <FiShoppingBag size={64} color="#ccc" />
-            <h3>No Orders Yet</h3>
-            <p>No orders have been placed on the platform yet.</p>
+        {filteredOrders.length === 0 && (
+          <div className="empty-state" style={{ textAlign: 'center', padding: '4rem 2rem', backgroundColor: 'white', borderRadius: '15px', marginTop: '2rem' }}>
+            <FiShoppingBag size={64} color="#e2e8f0" style={{ marginBottom: '1rem' }} />
+            <h3 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#4a5568' }}>No Orders Found</h3>
+            <p style={{ color: '#718096' }}>The order list is currently empty.</p>
           </div>
         )}
-      </div>
+
+        <ConfirmationModal 
+          isOpen={modalState.isOpen}
+          onClose={() => setModalState({ ...modalState, isOpen: false })}
+          onConfirm={handleConfirmStatusChange}
+          title="Update Order Status"
+          message={`Are you sure you want to change this order status to ${modalState.nextStatus?.replace(/_/g, ' ')}?`}
+          confirmText="Yes, Update"
+          cancelText="No, Keep It"
+          type={modalState.nextStatus === 'CANCELLED' ? 'danger' : 'primary'}
+        />
     </div>
   );
 }
