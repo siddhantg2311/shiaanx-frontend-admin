@@ -118,7 +118,7 @@ const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontWeight: 500 }}>{poDocument.file_name}</span>
                 <a 
-                  href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/${poDocument.file_path}`} 
+                  href={poDocument.file_path.startsWith('http') ? poDocument.file_path : `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/${poDocument.file_path}`} 
                   target="_blank" 
                   rel="noreferrer"
                   style={{ color: '#2f855a', textDecoration: 'underline', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600 }}
