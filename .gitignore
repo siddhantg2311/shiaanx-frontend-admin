@@ -8,8 +8,7 @@ package-lock.json
 .env.production
 
 # Build outputs
-frontend/build/
-backend/dist/
+build/
 
 # Logs
 *.log

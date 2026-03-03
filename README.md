@@ -1,1 +1,1 @@
-cd into backend and frontend folders individually and just go npm start ez
+Run `npm start` to start the application.

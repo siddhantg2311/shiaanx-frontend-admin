@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create generic Axios instance
 const api = axios.create({
-  baseURL: 'http://localhost:8000/api/v1', // Assuming port 8000 based on previous context 
+  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8000/api/v1', 
   headers: {
     'Content-Type': 'application/json',
   },
