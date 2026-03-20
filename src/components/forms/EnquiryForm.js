@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { FiUpload, FiX } from 'react-icons/fi';
+import { FiUpload, FiX, FiPlus, FiTrash2 } from 'react-icons/fi';
 import CustomDropdown from './CustomDropdown';
-import enquiryService from '../../services/enquiryService';
+import MultiSelectDropdown from './MultiSelectDropdown';
+import masterAttributeService from '../../services/masterAttributeService';
 import toast from 'react-hot-toast';
 import '../../styles/EnquiryForm.css';
 
@@ -12,7 +13,6 @@ const EnquiryForm = ({
   errors = {}, 
   isEditMode = false,
   users = [],
-  // vendors = [] 
 }) => {
   const [config, setConfig] = useState({
     PROCESSING_TECHNOLOGIES: [],
@@ -22,23 +22,33 @@ const EnquiryForm = ({
 
   const [formData, setFormData] = useState({
     customer_id: '',
-    // vendor_id: '',
-    processing_technology: '',
-    material: '',
-    finishes: '',
     remarks: '',
-    quantity: '',
     shipping_address: '',
     bill_details: '',
-    documents: [],
+    parts: [
+      {
+        id: Date.now(), // Local unique ID for UI tracking
+        part_name: '',
+        quantity: 1,
+        remarks: '',
+        technology_ids: [],
+        material_ids: [],
+        finish_ids: [],
+        documents: []
+      }
+    ],
     ...initialData
   });
 
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const response = await enquiryService.getConfig();
-        setConfig(response);
+        const response = await masterAttributeService.getAllAttributes();
+        setConfig({
+          PROCESSING_TECHNOLOGIES: response.technologies || [],
+          MATERIALS: response.materials || [],
+          FINISHES: response.finishes || []
+        });
       } catch (err) {
         toast.error('Failed to load form options');
         console.error(err);
@@ -55,23 +65,87 @@ const EnquiryForm = ({
     }));
   };
 
-  const handleFileChange = (e) => {
-    const files = Array.from(e.target.files);
+  const handlePartChange = (partId, field, value) => {
     setFormData(prev => ({
       ...prev,
-      documents: [...prev.documents, ...files]
+      parts: prev.parts.map(part => 
+        part.id === partId ? { ...part, [field]: value } : part
+      )
     }));
   };
 
-  const removeFile = (index) => {
+  const addPart = () => {
     setFormData(prev => ({
       ...prev,
-      documents: prev.documents.filter((_, i) => i !== index)
+      parts: [
+        ...prev.parts,
+        {
+          id: Date.now(),
+          part_name: '',
+          quantity: 1,
+          remarks: '',
+          technology_ids: [],
+          material_ids: [],
+          finish_ids: [],
+          documents: []
+        }
+      ]
+    }));
+  };
+
+  const removePart = (partId) => {
+    if (formData.parts.length === 1) {
+      toast.error('At least one part is required');
+      return;
+    }
+    setFormData(prev => ({
+      ...prev,
+      parts: prev.parts.filter(p => p.id !== partId)
+    }));
+  };
+
+  const handlePartFileChange = (partId, e) => {
+    const files = Array.from(e.target.files);
+    setFormData(prev => ({
+      ...prev,
+      parts: prev.parts.map(part => 
+        part.id === partId ? { ...part, documents: [...part.documents, ...files] } : part
+      )
+    }));
+  };
+
+  const removePartFile = (partId, fileIndex) => {
+    setFormData(prev => ({
+      ...prev,
+      parts: prev.parts.map(part => 
+        part.id === partId 
+          ? { ...part, documents: part.documents.filter((_, i) => i !== fileIndex) } 
+          : part
+      )
     }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    // Frontend validation
+    if (!formData.customer_id) {
+      toast.error('Please select a customer');
+      return;
+    }
+
+    if (!formData.shipping_address) {
+      toast.error('Shipping address is required');
+      return;
+    }
+    
+    // Check if at least one part name is provided
+    const invalidPart = formData.parts.find(p => !p.part_name);
+    if (invalidPart) {
+      toast.error('Please provide a name for all parts');
+      return;
+    }
+
     onSubmit(formData);
   };
 
@@ -93,106 +167,131 @@ const EnquiryForm = ({
                 displayKey="name"
                 valueKey="id"
             />
-
-            {/* <CustomDropdown 
-                label="Assign to Vendor"
-                name="vendor_id"
-                value={formData.vendor_id}
-                options={vendors}
-                onChange={handleChange}
-                placeholder="Select Vendor"
-                error={errors.vendor_id}
-                isObject={true}
-                displayKey="name"
-                valueKey="id"
-            /> */}
         </div>
 
-        <div className="form-group">
-          <label>Upload CAD Files / Drawings</label>
-          <div className="file-upload-box" onClick={() => document.getElementById('file-upload').click()}>
-            <FiUpload className="file-upload-icon" />
-            <p>Click to upload files (STEP, STL, DXF, PDF)</p>
-            <input
-              type="file"
-              id="file-upload"
-              className="file-input"
-              multiple
-              onChange={handleFileChange}
-            />
-          </div>
-          
-          {formData.documents.length > 0 && (
-            <div className="uploaded-files">
-              {formData.documents.map((file, index) => (
-                <span key={index} className="file-tag">
-                  {file.name}
-                  <FiX className="remove-file" onClick={() => removeFile(index)} />
-                </span>
-              ))}
+        <div className="parts-container">
+          {formData.parts.map((part, index) => (
+            <div key={part.id} className="part-section">
+              <div className="part-header">
+                <h3>Part #{index + 1}</h3>
+                <button type="button" className="remove-part-btn" onClick={() => removePart(part.id)}>
+                  <FiTrash2 /> Remove Part
+                </button>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Part Name / ID</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="e.g. Bottom Plate"
+                    value={part.part_name}
+                    onChange={(e) => handlePartChange(part.id, 'part_name', e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Quantity</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    value={part.quantity}
+                    onChange={(e) => handlePartChange(part.id, 'quantity', e.target.value)}
+                    min="1"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <MultiSelectDropdown 
+                  label="Processing Technologies"
+                  name={`tech_${part.id}`}
+                  value={part.technology_ids}
+                  options={config.PROCESSING_TECHNOLOGIES}
+                  onChange={(e) => handlePartChange(part.id, 'technology_ids', e.target.value)}
+                  placeholder="Select Technologies"
+                  isObject={true}
+                />
+
+                <MultiSelectDropdown 
+                  label="Materials"
+                  name={`mat_${part.id}`}
+                  value={part.material_ids}
+                  options={config.MATERIALS}
+                  onChange={(e) => handlePartChange(part.id, 'material_ids', e.target.value)}
+                  placeholder="Select Materials"
+                  isObject={true}
+                />
+              </div>
+
+              <div className="form-row">
+                <MultiSelectDropdown 
+                  label="Finishes"
+                  name={`fin_${part.id}`}
+                  value={part.finish_ids}
+                  options={config.FINISHES}
+                  onChange={(e) => handlePartChange(part.id, 'finish_ids', e.target.value)}
+                  placeholder="Select Finishes"
+                  isObject={true}
+                />
+                
+                <div className="form-group">
+                  <label>Part Remarks</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Specific tolerances, etc."
+                    value={part.remarks}
+                    onChange={(e) => handlePartChange(part.id, 'remarks', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Upload Part Documents (CAD / Drawings)</label>
+                <div className="file-upload-box" onClick={() => document.getElementById(`file-upload-${part.id}`).click()}>
+                  <FiUpload className="file-upload-icon" />
+                  <p>Click to upload files for this part</p>
+                  <input
+                    type="file"
+                    id={`file-upload-${part.id}`}
+                    className="file-input"
+                    multiple
+                    onChange={(e) => handlePartFileChange(part.id, e)}
+                  />
+                </div>
+                
+                {part.documents.length > 0 && (
+                  <div className="uploaded-files">
+                    {part.documents.map((file, fIndex) => (
+                      <span key={fIndex} className="file-tag">
+                        {file.name}
+                        <FiX className="remove-file" onClick={() => removePartFile(part.id, fIndex)} />
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          )}
+          ))}
+
+          <button type="button" className="add-part-btn" onClick={addPart}>
+            <FiPlus /> Add Another Part
+          </button>
         </div>
 
-        <div className="form-row">
-          <CustomDropdown 
-            label="Processing Technology"
-            name="processing_technology"
-            value={formData.processing_technology}
-            options={config.PROCESSING_TECHNOLOGIES}
-            onChange={handleChange}
-            placeholder="Select Technology"
-            error={errors.processing_technology}
-          />
-
-          <CustomDropdown 
-            label="Material"
-            name="material"
-            value={formData.material}
-            options={config.MATERIALS}
-            onChange={handleChange}
-            placeholder="Select Material"
-            error={errors.material}
-          />
-        </div>
-
-        <div className="form-row">
-          <CustomDropdown 
-            label="Finishes"
-            name="finishes"
-            value={formData.finishes}
-            options={config.FINISHES}
-            onChange={handleChange}
-            placeholder="Select Finish"
-            error={errors.finishes}
-          />
-
-          <div className="form-group">
-            <label htmlFor="quantity">Quantity (Units)</label>
-            <input
-              type="number"
-              id="quantity"
-              name="quantity"
-              className={`form-control ${errors.quantity ? 'error' : ''}`}
-              value={formData.quantity}
-              onChange={handleChange}
-              min="1"
-            />
-            {errors.quantity && <span className="error-message">{errors.quantity}</span>}
-          </div>
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="remarks">Remarks / Special Instructions</label>
+        <div className="form-group" style={{ marginTop: '2rem' }}>
+          <label htmlFor="remarks">Overall Enquiry Remarks</label>
           <textarea
             id="remarks"
             name="remarks"
-            className={`form-control ${errors.remarks ? 'error' : ''}`}
+            className="form-control"
             value={formData.remarks}
             onChange={handleChange}
-            placeholder="Any specific tolerances, surface roughness requirements, etc."
+            placeholder="Any general instructions for the entire enquiry..."
           ></textarea>
-          {errors.remarks && <span className="error-message">{errors.remarks}</span>}
         </div>
 
         <div className="form-row">
@@ -215,13 +314,12 @@ const EnquiryForm = ({
                 <textarea
                     id="bill_details"
                     name="bill_details"
-                    className={`form-control ${errors.bill_details ? 'error' : ''}`}
+                    className="form-control"
                     value={formData.bill_details}
                     onChange={handleChange}
                     placeholder="Enter billing information or additional details..."
                     style={{ minHeight: '120px' }}
                 ></textarea>
-                {errors.bill_details && <span className="error-message">{errors.bill_details}</span>}
             </div>
         </div>
 

@@ -4,6 +4,7 @@ import { FiArrowLeft, FiSave, FiX, FiCheckCircle } from 'react-icons/fi';
 import orderService from '../services/orderService';
 import userService from '../services/userService';
 import enquiryService from '../services/enquiryService';
+import masterAttributeService from '../services/masterAttributeService';
 import CustomDropdown from '../components/forms/CustomDropdown';
 import toast from 'react-hot-toast';
 import '../styles/OrderForm.css';
@@ -23,9 +24,9 @@ const OrderForm = () => {
     });
     const [formData, setFormData] = useState({
         customer_id: '',
-        processing_technology: '',
-        material: '',
-        finishes: '',
+        processing_technology_id: '',
+        material_id: '',
+        finish_id: '',
         quantity: 1,
         total_amount: 0,
         tax_amount: 0,
@@ -38,14 +39,19 @@ const OrderForm = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                // Fetch customers and enquiry config
-                const [usersRes, configRes] = await Promise.all([
+                // Fetch customers and master attributes
+                const [usersRes, attributesRes] = await Promise.all([
                     userService.getUsers({ limit: 100 }),
-                    enquiryService.getConfig()
+                    masterAttributeService.getAllAttributes()
                 ]);
                 
                 setCustomers(usersRes.items || []);
-                setConfig(configRes);
+                
+                setConfig({
+                    PROCESSING_TECHNOLOGIES: attributesRes.technologies || [],
+                    MATERIALS: attributesRes.materials || [],
+                    FINISHES: attributesRes.finishes || []
+                });
 
                 if (isEditMode) {
                     const order = await orderService.getDetails(id);
@@ -58,9 +64,9 @@ const OrderForm = () => {
 
                     setFormData({
                         customer_id: order.customer_id,
-                        processing_technology: order.processing_technology || '',
-                        material: order.material || '',
-                        finishes: order.finishes || '',
+                        processing_technology_id: order.processing_technology_id || '',
+                        material_id: order.material_id || '',
+                        finish_id: order.finish_id || '',
                         quantity: order.quantity,
                         total_amount: order.total_amount,
                         tax_amount: order.tax_amount,
@@ -151,32 +157,41 @@ const OrderForm = () => {
                         
                         <CustomDropdown 
                             label="Processing Technology"
-                            name="processing_technology"
-                            value={formData.processing_technology}
+                            name="processing_technology_id"
+                            value={formData.processing_technology_id}
                             options={config.PROCESSING_TECHNOLOGIES}
                             onChange={handleChange}
                             placeholder="Select Technology"
                             required
+                            isObject={true}
+                            displayKey="name"
+                            valueKey="id"
                         />
 
                         <CustomDropdown 
                             label="Material"
-                            name="material"
-                            value={formData.material}
+                            name="material_id"
+                            value={formData.material_id}
                             options={config.MATERIALS}
                             onChange={handleChange}
                             placeholder="Select Material"
                             required
+                            isObject={true}
+                            displayKey="name"
+                            valueKey="id"
                         />
 
                         <CustomDropdown 
                             label="Finishes"
-                            name="finishes"
-                            value={formData.finishes}
+                            name="finish_id"
+                            value={formData.finish_id}
                             options={config.FINISHES}
                             onChange={handleChange}
                             placeholder="Select Finish"
                             required
+                            isObject={true}
+                            displayKey="name"
+                            valueKey="id"
                         />
                         <div className="input-group">
                             <label>Quantity</label>

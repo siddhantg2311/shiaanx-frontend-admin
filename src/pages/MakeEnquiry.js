@@ -36,15 +36,33 @@ function MakeEnquiry() {
     try {
       setErrors({});
       
-      const { documents, ...enquiryData } = formData;
+      const { documents, parts, ...restData } = formData;
+      
+      // Clean parts data (remove documents as it's handled separately)
+      const cleanedParts = parts.map(({ documents, id, ...part }) => part);
       
       // 1. Create Enquiry
-      const response = await enquiryService.createEnquiry(enquiryData);
+      const response = await enquiryService.createEnquiry({ ...restData, parts: cleanedParts });
       const enquiryId = response.id;
+      const createdEnquiryItems = response.parts || [];
 
       // 2. Upload Documents if any
+      // Handle overall enquiry documents (though the form currently doesn't have an overall upload, keeping it for robustness)
       if (documents && documents.length > 0) {
         await enquiryService.uploadEnquiryDocuments(enquiryId, documents);
+      }
+
+      // Handle part-specific documents
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        if (part.documents && part.documents.length > 0) {
+          // Find the corresponding created part ID in backend
+          // We assume parts are returned in same order or we can match by name/index
+          const createdPartId = createdEnquiryItems[i]?.id;
+          if (createdPartId) {
+            await enquiryService.uploadEnquiryDocuments(enquiryId, part.documents, createdPartId);
+          }
+        }
       }
       
       toast.success('Enquiry created successfully!');

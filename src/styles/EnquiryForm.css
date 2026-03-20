@@ -120,6 +120,37 @@ label {
   font-weight: 500;
 }
 
+.dropdown-option.multi {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.checkbox-replacement {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #cbd5e0;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  background-color: white;
+}
+
+.dropdown-option.multi.selected .checkbox-replacement {
+  background-color: #2160b7;
+  border-color: #2160b7;
+  color: white;
+}
+
+.selected-text-container {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100% - 25px);
+}
+
 
 textarea.form-control {
   resize: vertical;
@@ -231,4 +262,66 @@ textarea.form-control {
   font-size: 0.85rem;
   margin-top: 0.25rem;
   display: block;
+}
+
+/* Part Section Styles */
+.part-section {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  background-color: #f8fafc;
+}
+
+.part-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.part-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #2d3748;
+}
+
+.remove-part-btn {
+  background: none;
+  border: none;
+  color: #e53e3e;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.remove-part-btn:hover {
+  text-decoration: underline;
+}
+
+.add-part-btn {
+  width: 100%;
+  padding: 1rem;
+  background-color: white;
+  border: 2px dashed #cbd5e0;
+  border-radius: 8px;
+  color: #4a5568;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: all 0.2s;
+}
+
+.add-part-btn:hover {
+  border-color: #2160b7;
+  color: #2160b7;
+  background-color: #f0f4f8;
 }

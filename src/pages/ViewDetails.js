@@ -61,7 +61,15 @@ function ViewDetails() {
             <div className="data-grid">
               <div className="data-item">
                 <label>Technology</label>
-                <span>{order.processing_technology}</span>
+                <span>{order.technology?.name || order.processing_technology}</span>
+              </div>
+              <div className="data-item">
+                <label>Material</label>
+                <span>{order.materialRef?.name || order.material}</span>
+              </div>
+              <div className="data-item">
+                <label>Finish</label>
+                <span>{order.finishRef?.name || order.finishes}</span>
               </div>
               <div className="data-item">
                 <label>Quantity</label>

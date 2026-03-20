@@ -74,7 +74,7 @@ function Orders() {
   const filteredOrders = orders.filter(order => 
     order.order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     order.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.processing_technology?.toLowerCase().includes(searchTerm.toLowerCase())
+    (order.technology?.name || order.processing_technology || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const stats = {
@@ -248,7 +248,7 @@ function Orders() {
               
               <div className="order-details" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '2rem' }}>
                 <div className="product-info">
-                  <h3 style={{ margin: '0 0 0.75rem 0', fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)' }}>{order.processing_technology}</h3>
+                  <h3 style={{ margin: '0 0 0.75rem 0', fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)' }}>{order.technology?.name || order.processing_technology || 'Custom Part'}</h3>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', color: 'var(--text-muted)' }}>
                     <p style={{ margin: 0, fontSize: '0.925rem' }}><strong>Customer:</strong> <span style={{ color: 'var(--text-main)' }}>{order.customer?.name}</span></p>
                     <p style={{ margin: 0, fontSize: '0.925rem' }}><strong>Quantity:</strong> <span style={{ color: 'var(--text-main)' }}>{order.quantity}</span></p>

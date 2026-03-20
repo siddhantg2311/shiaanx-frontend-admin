@@ -14,6 +14,7 @@ import Users from './pages/Users';
 import Vendors from './pages/Vendors';
 import Analytics from './pages/Analytics';
 import MakeEnquiry from './pages/MakeEnquiry';
+import MasterAttributes from './pages/MasterAttributes';
 import { AuthProvider } from './context/AuthContext';
 import { Toaster } from 'react-hot-toast';
 import ProtectedRoute from './components/layout/ProtectedRoute';
@@ -49,6 +50,7 @@ function App() {
           <Route path="/vendors" element={<Vendors />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/make-enquiry" element={<MakeEnquiry />} />
+          <Route path="/master-attributes" element={<MasterAttributes />} />
         </Route>
       </Routes>
     </Router>

@@ -57,12 +57,16 @@ const enquiryService = {
     }
   },
 
-  uploadEnquiryDocuments: async (id, documents) => {
+  uploadEnquiryDocuments: async (id, documents, enquiryPartId = null) => {
     try {
       const formData = new FormData();
       documents.forEach(doc => {
         formData.append('documents', doc);
       });
+
+      if (enquiryPartId) {
+        formData.append('enquiry_part_id', enquiryPartId);
+      }
 
       const response = await api.post(`/admin/enquiries/${id}/documents`, formData, {
         headers: {
