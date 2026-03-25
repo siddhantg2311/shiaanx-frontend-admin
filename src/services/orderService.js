@@ -68,6 +68,36 @@ const orderService = {
     } catch (error) {
       throw error.response ? error.response.data : error;
     }
+  },
+
+  uploadCamFile: async (id, files) => {
+    try {
+      const formData = new FormData();
+      files.forEach(file => {
+        formData.append('documents', file);
+      });
+      const response = await api.post(`/admin/orders/${id}/cam-file`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      return response.data || response;
+    } catch (error) {
+      throw error.response ? error.response.data : error;
+    }
+  },
+
+  uploadQcReport: async (id, files) => {
+    try {
+      const formData = new FormData();
+      files.forEach(file => {
+        formData.append('documents', file);
+      });
+      const response = await api.post(`/admin/orders/${id}/qc-report`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      return response.data || response;
+    } catch (error) {
+      throw error.response ? error.response.data : error;
+    }
   }
 };
 

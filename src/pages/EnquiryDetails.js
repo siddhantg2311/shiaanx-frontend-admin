@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { FiMessageSquare, FiX } from 'react-icons/fi';
 import EnquiryInfo from '../components/enquiry/EnquiryInfo';
 import EnquiryChat from '../components/enquiry/EnquiryChat';
 import OrderGenerationModal from '../components/enquiry/OrderGenerationModal';
@@ -13,6 +14,7 @@ const EnquiryDetails = () => {
   const [loading, setLoading] = useState(true);
   const [enquiryData, setEnquiryData] = useState(null);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  const [showChat, setShowChat] = useState(false);
 
   useEffect(() => {
     const fetchEnquiry = async () => {
@@ -77,22 +79,42 @@ const EnquiryDetails = () => {
           setLoading(false);
       }
   }
+
   if (loading) {
     return <div style={{ padding: '2rem' }}>Loading enquiry details...</div>;
   }
 
   return (
     <div className="enquiry-details-container">
-      <EnquiryInfo 
-        data={enquiryData} 
-        onApprovePO={() => setIsOrderModalOpen(true)}
-        onRejectPO={handleRejectPO}
-        onUpdateStatus={handleUpdateStatus}
-      />
-      <EnquiryChat 
-        enquiryId={id} 
-        initialMessages={enquiryData.messages || []} 
-      />
+      <div className={`details-section ${showChat ? 'with-chat' : ''}`}>
+        <EnquiryInfo 
+          data={enquiryData} 
+          onApprovePO={() => setIsOrderModalOpen(true)}
+          onRejectPO={handleRejectPO}
+          onUpdateStatus={handleUpdateStatus}
+        />
+      </div>
+
+      <div className={`chat-sidebar ${showChat ? 'open' : 'closed'}`}>
+        <div className="chat-header">
+            <h3 className="chat-title">Discussion / Requirements</h3>
+            <button className="chat-close-btn" onClick={() => setShowChat(false)}>
+                <FiX />
+            </button>
+        </div>
+        <EnquiryChat 
+          enquiryId={id} 
+          initialMessages={enquiryData.messages || []} 
+        />
+      </div>
+
+      <button 
+        className={`chat-toggle-btn ${showChat ? 'active' : ''}`}
+        onClick={() => setShowChat(!showChat)}
+        title={showChat ? "Close Chat" : "Open Chat"}
+      >
+        {showChat ? <FiX size={24} /> : <FiMessageSquare size={24} />}
+      </button>
 
       <OrderGenerationModal 
         isOpen={isOrderModalOpen}
