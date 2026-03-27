@@ -63,105 +63,149 @@ const OrderGenerationModal = ({ isOpen, onClose, onSubmit, enquiryData }) => {
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: '800px' }}>
-        <div className="modal-header">
-          <h3>Generate Order - Enquiry #{enquiryData?.enquiry_number}</h3>
-          <button className="close-btn" onClick={onClose}>
-            <FiX size={24} />
+    <div className="dfm-modal-overlay" style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.5)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="modal-content" style={{ maxWidth: '850px', width: '90%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)', backgroundColor: '#ffffff', border: 'none', padding: 0 }}>
+        <div className="modal-header" style={{ flexShrink: 0, padding: '1.25rem 2rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#ffffff' }}>
+          <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#0f172a', fontWeight: '700' }}>Generate Order <span style={{ color: '#64748b', fontWeight: 500 }}>-</span> <span style={{ color: '#3b82f6' }}>#{enquiryData?.enquiry_number}</span></h3>
+          <button type="button" onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color 0.2s', padding: '0.5rem', borderRadius: '50%' }} onMouseOver={(e) => { e.currentTarget.style.color = '#dc2626'; e.currentTarget.style.backgroundColor = '#fee2e2'; }} onMouseOut={(e) => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.backgroundColor = 'transparent'; }}>
+            <FiX size={20} />
           </button>
         </div>
         
-        <form onSubmit={handleSubmit}>
-          <div className="modal-body">
-            <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid #eee', paddingBottom: '1rem' }}>
-                <h4 style={{ marginBottom: '1rem', color: '#4a5568' }}>Order Items (from Enquiry Parts)</h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1.5fr 1.5fr', gap: '1rem', fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.5rem', color: '#718096' }}>
-                    <div>Part Name</div>
-                    <div>Qty</div>
-                    <div>Unit Price</div>
-                    <div>Total</div>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+          <div className="modal-body" style={{ padding: '2rem', overflowY: 'auto', flex: 1 }}>
+            {/* Parts Table Section */}
+            <div style={{ marginBottom: '2.5rem' }}>
+                <h4 style={{ margin: '0 0 1rem 0', color: '#1e293b', fontSize: '1.05rem', fontWeight: 600 }}>Order Items</h4>
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                      <tr>
+                        <th style={{ padding: '0.85rem 1.25rem', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Part Name</th>
+                        <th style={{ padding: '0.85rem 1.25rem', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center', width: '100px' }}>Qty</th>
+                        <th style={{ padding: '0.85rem 1.25rem', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '180px' }}>Unit Price (₹)</th>
+                        <th style={{ padding: '0.85rem 1.25rem', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right', width: '150px' }}>Total</th>
+                      </tr>
+                    </thead>
+                    <tbody style={{ backgroundColor: '#ffffff' }}>
+                      {items.map((item, index) => (
+                        <tr key={index} style={{ borderBottom: index < items.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                          <td style={{ padding: '1rem 1.25rem', fontSize: '0.95rem', color: '#334155', fontWeight: 600 }}>
+                            {item.item_name}
+                          </td>
+                          <td style={{ padding: '1rem 1.25rem', textAlign: 'center', color: '#475569', fontWeight: 600 }}>
+                            {item.quantity}
+                          </td>
+                          <td style={{ padding: '1rem 1.25rem' }}>
+                            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                              <span style={{ position: 'absolute', left: '0.85rem', color: '#64748b', fontWeight: 500 }}>₹</span>
+                              <input 
+                                type="number" 
+                                style={{ width: '100%', boxSizing: 'border-box', padding: '0.6rem 0.6rem 0.6rem 2rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.95rem', color: '#1e293b', outline: 'none', transition: 'all 0.2s', backgroundColor: '#f8fafc' }}
+                                placeholder="0.00"
+                                value={item.unit_price} 
+                                onChange={(e) => handleItemPriceChange(index, e.target.value)} 
+                                onFocus={(e) => { e.target.style.borderColor = '#3b82f6'; e.target.style.backgroundColor = '#ffffff'; e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'; }}
+                                onBlur={(e) => { e.target.style.borderColor = '#cbd5e1'; e.target.style.backgroundColor = '#f8fafc'; e.target.style.boxShadow = 'none'; }}
+                                required 
+                                step="0.01"
+                                min="0"
+                              />
+                            </div>
+                          </td>
+                          <td style={{ padding: '1rem 1.25rem', textAlign: 'right', fontWeight: 700, color: '#0f172a', fontSize: '1.05rem' }}>
+                            ₹{item.total_price}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                {items.map((item, index) => (
-                    <div key={index} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1.5fr 1.5fr', gap: '1rem', alignItems: 'center', marginBottom: '0.8rem' }}>
-                        <div style={{ fontSize: '0.95rem' }}>{item.item_name}</div>
-                        <div>{item.quantity}</div>
-                        <input 
-                            type="number" 
-                            className="form-control"
-                            style={{ padding: '0.4rem' }}
-                            placeholder="0.00"
-                            value={item.unit_price} 
-                            onChange={(e) => handleItemPriceChange(index, e.target.value)} 
-                            required 
-                            step="0.01"
-                        />
-                        <div style={{ fontWeight: 500 }}>₹{item.total_price}</div>
+            </div>
+
+            {/* Calculations Section */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '2.5rem' }}>
+                <div style={{ width: '380px', backgroundColor: '#f8fafc', padding: '1.5rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', color: '#475569', fontSize: '0.95rem' }}>
+                        <span>Total Basic:</span>
+                        <span style={{ fontWeight: 600, color: '#1e293b', fontSize: '1.05rem' }}>₹{calculateBasicTotal()}</span>
                     </div>
-                ))}
+                    
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                        <label style={{ margin: 0, color: '#475569', fontSize: '0.95rem' }}>Tax Amount:</label>
+                        <div style={{ position: 'relative', width: '160px' }}>
+                            <span style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: '#64748b', fontWeight: 500 }}>₹</span>
+                            <input 
+                                type="number" 
+                                style={{ width: '100%', boxSizing: 'border-box', padding: '0.5rem 0.75rem 0.5rem 2rem', border: '1px solid #cbd5e1', borderRadius: '6px', textAlign: 'right', fontSize: '0.95rem', outline: 'none', transition: 'all 0.2s', backgroundColor: '#ffffff' }}
+                                value={taxAmount} 
+                                onChange={(e) => setTaxAmount(e.target.value)} 
+                                onFocus={(e) => { e.target.style.borderColor = '#3b82f6'; e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'; }}
+                                onBlur={(e) => { e.target.style.borderColor = '#cbd5e1'; e.target.style.boxShadow = 'none'; }}
+                                step="0.01"
+                                min="0"
+                            />
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                        <label style={{ margin: 0, color: '#475569', fontSize: '0.95rem' }}>Discount:</label>
+                        <div style={{ position: 'relative', width: '160px' }}>
+                            <span style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: '#ef4444', fontWeight: 600 }}>-</span>
+                            <input 
+                                type="number" 
+                                style={{ width: '100%', boxSizing: 'border-box', padding: '0.5rem 0.75rem 0.5rem 2rem', border: '1px solid #cbd5e1', borderRadius: '6px', textAlign: 'right', fontSize: '0.95rem', outline: 'none', transition: 'all 0.2s', backgroundColor: '#ffffff', color: '#ef4444', fontWeight: 500 }}
+                                value={discountAmount} 
+                                onChange={(e) => setDiscountAmount(e.target.value)} 
+                                onFocus={(e) => { e.target.style.borderColor = '#ef4444'; e.target.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.1)'; }}
+                                onBlur={(e) => { e.target.style.borderColor = '#cbd5e1'; e.target.style.boxShadow = 'none'; }}
+                                step="0.01"
+                                min="0"
+                            />
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1.25rem', borderTop: '1px dashed #cbd5e1' }}>
+                        <span style={{ fontWeight: 700, fontSize: '1.1rem', color: '#1e293b' }}>Final Amount:</span>
+                        <span style={{ fontWeight: 800, fontSize: '1.5rem', color: '#2563eb' }}>₹{calculateFinalTotal()}</span>
+                    </div>
+                </div>
             </div>
 
-            <div style={{ borderTop: '2px solid #edf2f7', paddingTop: '1rem', marginBottom: '1.5rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
-                    <span style={{ width: '150px', fontWeight: 500 }}>Total Basic:</span>
-                    <span style={{ width: '100px', textAlign: 'right', fontWeight: 600 }}>₹{calculateBasicTotal()}</span>
-                </div>
-                
-                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '0.5rem' }}>
-                    <label style={{ width: '150px', margin: 0 }}>Tax Amount:</label>
+            {/* Other details */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '2rem', backgroundColor: '#f8fafc', padding: '1.5rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <div>
+                    <label style={{ display: 'flex', alignItems: 'center', marginBottom: '0.75rem', fontWeight: 600, color: '#334155', fontSize: '0.9rem' }}>
+                      <span style={{ marginRight: '6px' }}>📅</span> Expected Delivery Date
+                    </label>
                     <input 
-                        type="number" 
-                        className="form-control"
-                        style={{ width: '100px', padding: '0.4rem', textAlign: 'right' }}
-                        value={taxAmount} 
-                        onChange={(e) => setTaxAmount(e.target.value)} 
-                        step="0.01"
+                        type="date" 
+                        style={{ width: '100%', boxSizing: 'border-box', padding: '0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.95rem', outline: 'none', color: '#1e293b', backgroundColor: '#ffffff', transition: 'all 0.2s' }}
+                        value={expectedDate} 
+                        onChange={(e) => setExpectedDate(e.target.value)}
+                        onFocus={(e) => { e.target.style.borderColor = '#3b82f6'; e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'; }}
+                        onBlur={(e) => { e.target.style.borderColor = '#cbd5e1'; e.target.style.boxShadow = 'none'; }}
                     />
                 </div>
-
-                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '0.5rem' }}>
-                    <label style={{ width: '150px', margin: 0 }}>Discount:</label>
-                    <input 
-                        type="number" 
-                        className="form-control"
-                        style={{ width: '100px', padding: '0.4rem', textAlign: 'right' }}
-                        value={discountAmount} 
-                        onChange={(e) => setDiscountAmount(e.target.value)} 
-                        step="0.01"
-                    />
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.8rem', paddingTop: '0.8rem', borderTop: '1px solid #eee' }}>
-                    <span style={{ width: '150px', fontWeight: 700, fontSize: '1.1rem' }}>Final Amount:</span>
-                    <span style={{ width: '100px', textAlign: 'right', fontWeight: 800, fontSize: '1.1rem', color: '#2160b7' }}>₹{calculateFinalTotal()}</span>
-                </div>
-            </div>
-
-            <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                <div className="form-group">
-                <label>Expected Delivery Date</label>
-                <input 
-                    type="date" 
-                    className="form-control"
-                    value={expectedDate} 
-                    onChange={(e) => setExpectedDate(e.target.value)} 
-                />
-                </div>
-                <div className="form-group">
-                <label>Admin Notes</label>
-                <textarea 
-                    className="form-control"
-                    value={adminNotes} 
-                    onChange={(e) => setAdminNotes(e.target.value)} 
-                    rows="2"
-                ></textarea>
+                <div>
+                    <label style={{ display: 'flex', alignItems: 'center', marginBottom: '0.75rem', fontWeight: 600, color: '#334155', fontSize: '0.9rem' }}>
+                      <span style={{ marginRight: '6px' }}>📝</span> Admin Notes (Optional)
+                    </label>
+                    <textarea 
+                        style={{ width: '100%', boxSizing: 'border-box', padding: '0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.95rem', outline: 'none', resize: 'vertical', minHeight: '100px', color: '#1e293b', backgroundColor: '#ffffff', transition: 'all 0.2s', fontFamily: 'inherit' }}
+                        value={adminNotes} 
+                        onChange={(e) => setAdminNotes(e.target.value)}
+                        onFocus={(e) => { e.target.style.borderColor = '#3b82f6'; e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'; }}
+                        onBlur={(e) => { e.target.style.borderColor = '#cbd5e1'; e.target.style.boxShadow = 'none'; }}
+                        placeholder="Add any internal notes, supplier instructions, or specific conditions..."
+                    ></textarea>
                 </div>
             </div>
           </div>
 
-          <div className="modal-footer">
-            <button type="button" className="btn-cancel" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn-confirm">Generate Order</button>
+          <div className="modal-footer" style={{ flexShrink: 0, padding: '1.25rem 2rem', borderTop: '1px solid #e2e8f0', backgroundColor: '#f1f5f9', display: 'flex', justifyContent: 'flex-end', gap: '1rem', borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px' }}>
+            <button type="button" onClick={onClose} style={{ padding: '0.65rem 1.5rem', backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '6px', fontWeight: 600, color: '#475569', cursor: 'pointer', transition: 'all 0.2s' }} onMouseOver={(e) => { e.target.style.backgroundColor = '#f8fafc'; e.target.style.color = '#0f172a'; }} onMouseOut={(e) => { e.target.style.backgroundColor = '#ffffff'; e.target.style.color = '#475569'; }}>Cancel</button>
+            <button type="submit" style={{ padding: '0.65rem 1.75rem', backgroundColor: '#2563eb', border: 'none', borderRadius: '6px', fontWeight: 600, color: '#ffffff', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 1px 3px rgba(37, 99, 235, 0.3)' }} onMouseOver={(e) => { e.target.style.backgroundColor = '#1d4ed8'; e.target.style.boxShadow = '0 4px 6px rgba(37, 99, 235, 0.3)'; }} onMouseOut={(e) => { e.target.style.backgroundColor = '#2563eb'; e.target.style.boxShadow = '0 1px 3px rgba(37, 99, 235, 0.3)'; }}>Generate Order</button>
           </div>
         </form>
       </div>

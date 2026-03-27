@@ -13,7 +13,7 @@ const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
 
   // DFM Modal state
   const [isDfmModalOpen, setIsDfmModalOpen] = useState(false);
-  const [dfmFile, setDfmFile] = useState(null);
+  const [dfmFiles, setDfmFiles] = useState([]);
   const [dfmRemarks, setDfmRemarks] = useState('');
   const [isUploadingDfm, setIsUploadingDfm] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -23,8 +23,8 @@ const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
   const handleDrop = (e) => {
     e.preventDefault();
     setIsDragOver(false);
-    const file = e.dataTransfer.files[0];
-    if (file) setDfmFile(file);
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) setDfmFiles(prev => [...prev, ...files]);
   };
 
   if (!data) return <div className="info-card">Loading...</div>;
@@ -63,12 +63,12 @@ const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
   };
 
   const handleDfmUpload = async () => {
-    if (!dfmFile) { toast.error("Please select a file for DFM"); return; }
+    if (dfmFiles.length === 0) { toast.error("Please select at least one file for DFM"); return; }
     try {
       setIsUploadingDfm(true);
-      await enquiryService.uploadEnquiryDocuments(data.id, [dfmFile], null, 'DFM', dfmRemarks);
+      await enquiryService.uploadEnquiryDocuments(data.id, dfmFiles, null, 'DFM', dfmRemarks);
       toast.success("DFM uploaded successfully");
-      setDfmFile(null);
+      setDfmFiles([]);
       setDfmRemarks('');
       setIsDfmModalOpen(false);
       window.location.reload();
@@ -79,18 +79,8 @@ const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
     }
   };
 
-  const handleApprove = async () => {
-    try {
-      if (data.status === 'PO_UPLOADED') {
-        await onApprovePO();
-      } else {
-        await onUpdateStatus('ORDER_GENERATED');
-      }
-      toast.success("Order confirmed successfully");
-      window.location.reload();
-    } catch (error) {
-      toast.error(error.message || "Failed to confirm order");
-    }
+  const handleApprove = () => {
+    onApprovePO();
   };
 
   const handleReject = async () => {
@@ -115,7 +105,7 @@ const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
               <h3><FiTool /> Add DFM Analysis</h3>
               <button 
                 className="dfm-modal-close" 
-                onClick={() => { setIsDfmModalOpen(false); setDfmFile(null); setDfmRemarks(''); }}
+                onClick={() => { setIsDfmModalOpen(false); setDfmFiles([]); setDfmRemarks(''); }}
               >
                 <FiX />
               </button>
@@ -124,32 +114,70 @@ const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
               <div className="dfm-modal-field">
                 <label className="dfm-modal-label">DFM Report File <span style={{ color: '#e53e3e' }}>*</span></label>
                 <div 
-                  className={`dfm-modal-file-zone ${isDragOver ? 'drag-over' : ''} ${dfmFile ? 'has-file' : ''}`}
+                  className={`dfm-modal-file-zone ${isDragOver ? 'drag-over' : ''} ${dfmFiles.length > 0 ? 'has-file' : ''}`}
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                 >
-                  {dfmFile ? (
-                    <>
-                      <FiCheckCircle size={28} color="#16a34a" />
-                      <p className="dfm-zone-filename">{dfmFile.name}</p>
-                      <p className="dfm-zone-hint">Click to change file</p>
-                    </>
-                  ) : (
-                    <>
-                      <FiUpload size={28} color={isDragOver ? '#16a34a' : '#94a3b8'} />
-                      <p className="dfm-zone-title">
-                        {isDragOver ? 'Drop file here' : 'Drag & drop or click to browse'}
-                      </p>
-                      <p className="dfm-zone-hint">PDF, DWG, STEP, or any report format</p>
-                    </>
-                  )}
+                  <FiUpload size={28} color={isDragOver ? '#16a34a' : '#94a3b8'} />
+                  <p className="dfm-zone-title">
+                    {isDragOver ? 'Drop files here' : 'Drag & drop or click to browse'}
+                  </p>
+                  <p className="dfm-zone-hint">PDF, Images, DWG, STEP, or any report format</p>
                   <input 
                     type="file"
-                    onChange={(e) => setDfmFile(e.target.files[0])}
+                    multiple
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files);
+                      if (files.length > 0) setDfmFiles(prev => [...prev, ...files]);
+                    }}
                     style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }}
                   />
                 </div>
+
+                {/* File Previews */}
+                {dfmFiles.length > 0 && (
+                  <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b' }}>SELECTED FILES ({dfmFiles.length})</span>
+                      <button 
+                        onClick={() => setDfmFiles([])} 
+                        style={{ fontSize: '0.75rem', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+                      >
+                        Clear All
+                      </button>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '0.75rem' }}>
+                      {dfmFiles.map((file, idx) => {
+                        const isImage = file.type.startsWith('image/');
+                        return (
+                          <div key={idx} style={{ position: 'relative', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '4px', backgroundColor: '#f8fafc' }}>
+                            <button 
+                              onClick={() => setDfmFiles(prev => prev.filter((_, i) => i !== idx))}
+                              style={{ position: 'absolute', top: '-6px', right: '-6px', width: '20px', height: '20px', borderRadius: '50%', backgroundColor: '#ef4444', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', zIndex: 5, boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+                            >
+                              <FiX size={12} />
+                            </button>
+                            {isImage ? (
+                              <img 
+                                src={URL.createObjectURL(file)} 
+                                alt="preview" 
+                                style={{ width: '100%', height: '70px', objectFit: 'cover', borderRadius: '6px' }} 
+                              />
+                            ) : (
+                              <div style={{ width: '100%', height: '70px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#eff6ff', borderRadius: '6px', color: '#2563eb' }}>
+                                <FiFileText size={24} />
+                              </div>
+                            )}
+                            <div style={{ fontSize: '0.65rem', color: '#475569', textAlign: 'center', marginTop: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '0 2px' }}>
+                              {file.name}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="dfm-modal-field">
                 <label className="dfm-modal-label">Remarks for Customer</label>
@@ -164,14 +192,14 @@ const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
             <div className="dfm-modal-footer">
               <button 
                 className="dfm-modal-cancel"
-                onClick={() => { setIsDfmModalOpen(false); setDfmFile(null); setDfmRemarks(''); }}
+                onClick={() => { setIsDfmModalOpen(false); setDfmFiles([]); setDfmRemarks(''); }}
               >
                 Cancel
               </button>
               <button 
                 className="dfm-modal-submit"
                 onClick={handleDfmUpload}
-                disabled={isUploadingDfm || !dfmFile}
+                disabled={isUploadingDfm || dfmFiles.length === 0}
               >
                 {isUploadingDfm ? 'Uploading...' : 'Upload DFM'}
               </button>
@@ -310,7 +338,7 @@ const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
                             </button>
                         )}
                         <button onClick={handleApprove} className="confirm-order-btn" style={{ width: '100%', padding: '0.85rem', borderRadius: '8px', fontWeight: 700, fontSize: '1rem' }}>
-                            {data.status === 'PO_UPLOADED' ? 'Complete Order' : 'Quick Order'}
+                            {data.status === 'PO_UPLOADED' ? 'Complete Order' : 'Generate Order'}
                         </button>
                     </div>
                 )}
@@ -396,7 +424,13 @@ const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
                                         rel="noreferrer" 
                                         className="view-link dfm"
                                     >
-                                        OPEN FILE
+                                        {d.file_name?.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                                            <img 
+                                                src={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/${d.file_path}`} 
+                                                alt={d.file_name}
+                                                style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #e2e8f0' }}
+                                            />
+                                        ) : 'OPEN FILE'}
                                     </a>
                                 </div>
                                 {d.remarks && (
