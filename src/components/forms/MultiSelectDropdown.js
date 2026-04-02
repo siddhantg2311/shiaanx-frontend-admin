@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FiChevronDown, FiChevronUp, FiCheck, FiX } from 'react-icons/fi';
+import { FiChevronDown, FiChevronUp, FiCheck, FiX, FiPlus } from 'react-icons/fi';
 import '../../styles/EnquiryForm.css';
 
 const MultiSelectDropdown = ({ 
@@ -13,7 +13,8 @@ const MultiSelectDropdown = ({
   isObject = false, 
   displayKey = 'name', 
   valueKey = 'id', 
-  disabled = false 
+  disabled = false,
+  onAddNew
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -88,6 +89,20 @@ const MultiSelectDropdown = ({
                 </div>
               );
             })}
+            
+            {onAddNew && (
+              <div 
+                className="dropdown-option add-new-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddNew();
+                  setIsOpen(false);
+                }}
+                style={{ borderTop: '1px solid #e2e8f0', color: '#2160b7', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px' }}
+              >
+                <FiPlus size={16} /> <span>Add New {label.replace(/s$/i, '').replace(/ie$/i, 'y')}</span>
+              </div>
+            )}
           </div>
         )}
       </div>

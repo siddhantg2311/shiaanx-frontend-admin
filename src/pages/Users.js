@@ -27,7 +27,10 @@ function Users() {
     password: '',
     confirm_password: '',
     role: 'CUSTOMER',
-    status: 'active'
+    status: 'active',
+    company_name: '',
+    gst: '',
+    registered_address: ''
   });
 
   const [passwordFormData, setPasswordFormData] = useState({
@@ -76,7 +79,10 @@ function Users() {
       password: '',
       confirm_password: '',
       role: 'CUSTOMER',
-      status: 'active'
+      status: 'active',
+      company_name: '',
+      gst: '',
+      registered_address: ''
     });
     setErrors({});
     setIsModalOpen(true);
@@ -89,7 +95,10 @@ function Users() {
       name: user.name,
       email: user.email,
       role: user.role,
-      status: user.status
+      status: user.status,
+      company_name: user.company_name || '',
+      gst: user.gst || '',
+      registered_address: user.registered_address || ''
     });
     setErrors({});
     setIsModalOpen(true);
@@ -293,9 +302,12 @@ function Users() {
         <table>
           <thead>
             <tr>
+              <th>User ID</th>
               <th>Name</th>
               <th>Email</th>
               <th>Role</th>
+              <th>Company</th>
+              <th>GST</th>
               <th>Status</th>
               <th>Join Date</th>
               <th>Actions</th>
@@ -305,9 +317,12 @@ function Users() {
             {filteredUsers.length > 0 ? (
               filteredUsers.map(user => (
                 <tr key={user.id}>
+                  <td><strong>{user.user_id || '-'}</strong></td>
                   <td>{user.name}</td>
                   <td>{user.email}</td>
                   <td>{user.role}</td>
+                  <td>{user.company_name || '-'}</td>
+                  <td>{user.gst || '-'}</td>
                   <td>
                     <span className={`status-badge ${user.status}`}>
                       {user.status.charAt(0).toUpperCase() + user.status.slice(1).toLowerCase()}
@@ -396,6 +411,43 @@ function Users() {
                   autoComplete="none"
                 />
                 {errors.email && <span className="error-message">{errors.email}</span>}
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Company Name</label>
+                  <input 
+                    type="text" 
+                    name="company_name" 
+                    value={formData.company_name} 
+                    onChange={handleInputChange} 
+                    placeholder="Enter company name"
+                    autoComplete="none"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>GST Number</label>
+                  <input 
+                    type="text" 
+                    name="gst" 
+                    value={formData.gst} 
+                    onChange={handleInputChange} 
+                    placeholder="Enter GST number"
+                    autoComplete="none"
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Registered Address</label>
+                <textarea 
+                  name="registered_address" 
+                  value={formData.registered_address} 
+                  onChange={handleInputChange} 
+                  placeholder="Enter registered address"
+                  rows="3"
+                  className="form-control-textarea"
+                />
               </div>
               
               {!isEditMode && (

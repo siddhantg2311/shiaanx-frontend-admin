@@ -24,7 +24,7 @@ const EnquiryForm = ({
     customer_id: '',
     remarks: '',
     shipping_address: '',
-    bill_details: '',
+    billing_address: '',
     parts: [
       {
         id: Date.now(), // Local unique ID for UI tracking
@@ -40,29 +40,84 @@ const EnquiryForm = ({
     ...initialData
   });
 
+  const [addModal, setAddModal] = useState({ isOpen: false, type: '', label: '', value: '' });
+  const [sameAsBilling, setSameAsBilling] = useState(false);
+
+  const fetchConfig = async () => {
+    try {
+      const response = await masterAttributeService.getAllAttributes();
+      setConfig({
+        PROCESSING_TECHNOLOGIES: response.technologies || [],
+        MATERIALS: response.materials || [],
+        FINISHES: response.finishes || []
+      });
+    } catch (err) {
+      toast.error('Failed to load form options');
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
-    const fetchConfig = async () => {
-      try {
-        const response = await masterAttributeService.getAllAttributes();
-        setConfig({
-          PROCESSING_TECHNOLOGIES: response.technologies || [],
-          MATERIALS: response.materials || [],
-          FINISHES: response.finishes || []
-        });
-      } catch (err) {
-        toast.error('Failed to load form options');
-        console.error(err);
-      }
-    };
     fetchConfig();
   }, []);
 
+  const handleAddNew = (type) => {
+    let namePrompt = '';
+    
+    if (type === 'PROCESSING_TECHNOLOGIES') namePrompt = 'Processing Technology';
+    else if (type === 'MATERIALS') namePrompt = 'Material';
+    else if (type === 'FINISHES') namePrompt = 'Finish';
+
+    setAddModal({ isOpen: true, type, label: namePrompt, value: '' });
+  };
+
+  const handleAddSubmit = async (e) => {
+    e.preventDefault();
+    if (!addModal.value.trim()) return;
+
+    let apiCall = null;
+    if (addModal.type === 'PROCESSING_TECHNOLOGIES') apiCall = masterAttributeService.createTechnology;
+    else if (addModal.type === 'MATERIALS') apiCall = masterAttributeService.createMaterial;
+    else if (addModal.type === 'FINISHES') apiCall = masterAttributeService.createFinish;
+
+    try {
+      await apiCall({ name: addModal.value.trim(), description: '' });
+      toast.success(`${addModal.value} added successfully`);
+      await fetchConfig();
+      setAddModal({ isOpen: false, type: '', label: '', value: '' });
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to add new item');
+    }
+  };
+
+  const handleSameAsBillingChange = (e) => {
+    const checked = e.target.checked;
+    setSameAsBilling(checked);
+    if (checked) {
+      setFormData(prev => ({ ...prev, shipping_address: prev.billing_address }));
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => {
+      const newData = { ...prev, [name]: value };
+      
+      if (name === 'customer_id') {
+        const selectedUser = users.find(u => u.id === value);
+        if (selectedUser && selectedUser.registered_address) {
+          newData.billing_address = selectedUser.registered_address;
+          if (sameAsBilling) {
+            newData.shipping_address = selectedUser.registered_address;
+          }
+        }
+      } else if (name === 'billing_address' && sameAsBilling) {
+        newData.shipping_address = value;
+      }
+      
+      return newData;
+    });
   };
 
   const handlePartChange = (partId, field, value) => {
@@ -213,6 +268,7 @@ const EnquiryForm = ({
                   onChange={(e) => handlePartChange(part.id, 'technology_ids', e.target.value)}
                   placeholder="Select Technologies"
                   isObject={true}
+                  onAddNew={() => handleAddNew('PROCESSING_TECHNOLOGIES')}
                 />
 
                 <MultiSelectDropdown 
@@ -223,6 +279,7 @@ const EnquiryForm = ({
                   onChange={(e) => handlePartChange(part.id, 'material_ids', e.target.value)}
                   placeholder="Select Materials"
                   isObject={true}
+                  onAddNew={() => handleAddNew('MATERIALS')}
                 />
               </div>
 
@@ -235,6 +292,7 @@ const EnquiryForm = ({
                   onChange={(e) => handlePartChange(part.id, 'finish_ids', e.target.value)}
                   placeholder="Select Finishes"
                   isObject={true}
+                  onAddNew={() => handleAddNew('FINISHES')}
                 />
                 
                 <div className="form-group">
@@ -296,7 +354,27 @@ const EnquiryForm = ({
 
         <div className="form-row">
             <div className="form-group">
-                <label htmlFor="shipping_address">Shipping Address</label>
+                <label htmlFor="billing_address">Billing Address</label>
+                <textarea
+                    id="billing_address"
+                    name="billing_address"
+                    className={`form-control ${errors.billing_address ? 'error' : ''}`}
+                    value={formData.billing_address}
+                    onChange={handleChange}
+                    placeholder="Enter full billing address"
+                    style={{ minHeight: '120px' }}
+                ></textarea>
+                {errors.billing_address && <span className="error-message">{errors.billing_address}</span>}
+            </div>
+
+            <div className="form-group">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label htmlFor="shipping_address" style={{ margin: 0 }}>Shipping Address</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0, fontWeight: 'normal', fontSize: '13px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    <input type="checkbox" checked={sameAsBilling} onChange={handleSameAsBillingChange} style={{ margin: 0 }} />
+                    Same as Billing
+                  </label>
+                </div>
                 <textarea
                     id="shipping_address"
                     name="shipping_address"
@@ -305,21 +383,9 @@ const EnquiryForm = ({
                     onChange={handleChange}
                     placeholder="Enter full shipping address"
                     style={{ minHeight: '120px' }}
+                    disabled={sameAsBilling}
                 ></textarea>
                 {errors.shipping_address && <span className="error-message">{errors.shipping_address}</span>}
-            </div>
-
-            <div className="form-group">
-                <label htmlFor="bill_details">Bill / Extra Details</label>
-                <textarea
-                    id="bill_details"
-                    name="bill_details"
-                    className="form-control"
-                    value={formData.bill_details}
-                    onChange={handleChange}
-                    placeholder="Enter billing information or additional details..."
-                    style={{ minHeight: '120px' }}
-                ></textarea>
             </div>
         </div>
 
@@ -332,6 +398,42 @@ const EnquiryForm = ({
           </button>
         </div>
       </form>
+
+      {addModal.isOpen && (
+        <div className="modal-overlay" onClick={() => setAddModal({ isOpen: false, type: '', label: '', value: '' })}>
+          <div className="modal-container glass user-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px', padding: '24px' }}>
+            <div className="modal-header" style={{ marginBottom: '15px' }}>
+              <h2 style={{ fontSize: '1.25rem', margin: 0 }}>Add New {addModal.label}</h2>
+              <button className="close-btn" onClick={() => setAddModal({ isOpen: false, type: '', label: '', value: '' })}>
+                <FiX size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleAddSubmit} className="user-form">
+              <div className="form-group">
+                <label>Name</label>
+                <input 
+                  type="text" 
+                  className="form-control"
+                  style={{ width: '100%' }}
+                  value={addModal.value}
+                  onChange={(e) => setAddModal(prev => ({ ...prev, value: e.target.value }))}
+                  placeholder={`Enter ${addModal.label} name`}
+                  autoFocus
+                  required
+                />
+              </div>
+              <div className="form-actions" style={{ marginTop: '20px', paddingTop: '15px' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setAddModal({ isOpen: false, type: '', label: '', value: '' })}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Save Option
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

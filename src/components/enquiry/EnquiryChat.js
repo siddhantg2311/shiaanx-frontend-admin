@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FiSend } from 'react-icons/fi';
+import { FiSend, FiMessageSquare } from 'react-icons/fi';
 import enquiryService from '../../services/enquiryService';
 import toast from 'react-hot-toast';
 
@@ -45,45 +45,52 @@ const EnquiryChat = ({ enquiryId, initialMessages = [] }) => {
 
   return (
     <div className="enquiry-chat-panel">
-      <div className="chat-header">
-        <h3 className="chat-title">Discussion / Requirements</h3>
-      </div>
-
       <div className="chat-messages">
         {messages.length === 0 && (
-          <div style={{ textAlign: 'center', color: '#a0aec0', marginTop: '2rem' }}>
-            No messages yet.
+          <div className="no-messages-container">
+            <div className="no-messages-icon">
+              <FiMessageSquare size={48} />
+            </div>
+            <h3>No messages yet</h3>
+            <p>Start the conversation by typing a message below.</p>
           </div>
         )}
         
         {messages.map((msg) => {
           // In Admin Panel: Admin is "me" (Right/User style), User is "them" (Left/Admin style)
           const isAdmin = msg.sender?.role?.toUpperCase() === 'ADMIN' || !msg.sender;
-          const bubbleClass = isAdmin ? 'user' : 'admin';
+          const bubbleClass = isAdmin ? 'sent' : 'received';
 
           return (
-            <div key={msg.id} className={`message-bubble ${bubbleClass}`}>
-              <div className="message-content">{msg.message}</div>
-              <span className="message-time">{formatTime(msg.createdAt)}</span>
+            <div key={msg.id} className={`message-bubble-wrapper ${bubbleClass}`}>
+              <div className="message-bubble">
+                <div className="message-content">{msg.message}</div>
+                <div className="message-footer">
+                   <span className="sender-name">{isAdmin ? 'Admin' : (msg.sender?.name || 'Customer')}</span>
+                   <span className="message-time">{formatTime(msg.createdAt)}</span>
+                </div>
+              </div>
             </div>
           )
         })}
         <div ref={messagesEndRef} />
       </div>
 
-      <form className="chat-input-area" onSubmit={handleSend}>
-        <input
-          type="text"
-          className="chat-input"
-          placeholder="Type your message..."
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          disabled={sending}
-        />
-        <button type="submit" className="send-btn" disabled={sending}>
-          <FiSend size={18} />
-        </button>
-      </form>
+      <div className="chat-input-container">
+        <form className="chat-input-area" onSubmit={handleSend}>
+          <input
+            type="text"
+            className="chat-input"
+            placeholder="Type your message..."
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            disabled={sending}
+          />
+          <button type="submit" className="send-btn" disabled={sending || !newMessage.trim()}>
+            <FiSend size={20} />
+          </button>
+        </form>
+      </div>
     </div>
   );
 };
