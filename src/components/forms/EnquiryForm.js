@@ -214,7 +214,7 @@ const EnquiryForm = ({
                 label="Assign to Customer"
                 name="customer_id"
                 value={formData.customer_id}
-                options={users}
+                options={users.filter(u => u.role === 'CUSTOMER')}
                 onChange={handleChange}
                 placeholder="Select Customer"
                 error={errors.customer_id}
