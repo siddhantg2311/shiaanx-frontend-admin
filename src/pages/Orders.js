@@ -258,16 +258,16 @@ function Orders() {
               
               <div className="order-actions" style={{ 
                 display: 'grid', 
-                gridTemplateColumns: order.status === 'PROCESSING' ? '1fr 1fr 1fr' : '1fr 1fr', 
+                gridTemplateColumns: order.status === 'PROCESSING' ? '1fr 1fr' : '1fr 1fr', 
                 gap: '1rem', 
                 marginTop: '1.75rem', 
                 borderTop: '1px solid var(--border)', 
                 paddingTop: '1.25rem' 
               }}>
                 <button className="action-btn secondary" style={{ padding: '0.875rem', borderRadius: '12px', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem' }} onClick={() => navigate(`/orders/${order.id}/track`)}>Timeline</button>
-                {order.status === 'PROCESSING' && (
+                {/* {order.status === 'PROCESSING' && (
                   <button className="action-btn secondary" style={{ padding: '0.875rem', borderRadius: '12px', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem' }} onClick={() => navigate(`/orders/${order.id}/edit`)}>Edit</button>
-                )}
+                )} */}
                 <button className="action-btn primary" style={{ padding: '0.875rem', borderRadius: '12px', color: 'white', fontWeight: 700, cursor: 'pointer', border: 'none', fontSize: '0.85rem' }} onClick={() => navigate(`/orders/${order.id}`)}>Details</button>
               </div>
             </div>

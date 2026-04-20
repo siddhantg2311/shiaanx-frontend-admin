@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiShoppingBag, FiPackage, FiFileText, FiClock, FiEdit2, FiUploadCloud, FiCheckCircle, FiLoader } from 'react-icons/fi';
 import orderService from '../services/orderService';
+import OrderEditModal from '../components/order/OrderEditModal';
 import toast from 'react-hot-toast';
 import '../styles/ViewDetails.css';
 
@@ -87,6 +88,7 @@ function ViewDetails() {
   const [loading, setLoading] = useState(true);
   const [uploadingCam, setUploadingCam] = useState(false);
   const [uploadingQc, setUploadingQc] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const fetchOrder = async () => {
     try {
@@ -128,6 +130,17 @@ function ViewDetails() {
     }
   };
   
+  const handleEditSubmit = async (data) => {
+    try {
+      await orderService.update(id, data);
+      toast.success('Order updated successfully');
+      setIsEditModalOpen(false);
+      await fetchOrder();
+    } catch (err) {
+      toast.error(err.message || 'Failed to update order');
+    }
+  };
+
   const handleDownload = async (filePath, fileName) => {
     try {
       const url = filePath.startsWith('http') ? filePath : `${BASE_URL}/${filePath}`;
@@ -166,7 +179,7 @@ function ViewDetails() {
           {order.status === 'PROCESSING' && (
             <button
               className="btn-secondary"
-              onClick={() => navigate(`/orders/${id}/edit`)}
+              onClick={() => setIsEditModalOpen(true)}
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.25rem' }}
             >
               <FiEdit2 size={18} /> Edit Order
@@ -350,6 +363,13 @@ function ViewDetails() {
       </div>
 
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+
+      <OrderEditModal 
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        onSubmit={handleEditSubmit}
+        orderData={order}
+      />
     </div>
   );
 }
