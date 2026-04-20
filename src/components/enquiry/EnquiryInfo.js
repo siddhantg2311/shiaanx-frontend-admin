@@ -18,6 +18,13 @@ const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
   const [isUploadingDfm, setIsUploadingDfm] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
 
+  // Vendor Modal state
+  const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
+  const [vendorFiles, setVendorFiles] = useState([]);
+  const [vendorRemarks, setVendorRemarks] = useState('');
+  const [isUploadingVendor, setIsUploadingVendor] = useState(false);
+  const [isVendorDragOver, setIsVendorDragOver] = useState(false);
+
   const handleDragOver = (e) => { e.preventDefault(); setIsDragOver(true); };
   const handleDragLeave = () => setIsDragOver(false);
   const handleDrop = (e) => {
@@ -27,10 +34,20 @@ const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
     if (files.length > 0) setDfmFiles(prev => [...prev, ...files]);
   };
 
+  const handleVendorDragOver = (e) => { e.preventDefault(); setIsVendorDragOver(true); };
+  const handleVendorDragLeave = () => setIsVendorDragOver(false);
+  const handleVendorDrop = (e) => {
+    e.preventDefault();
+    setIsVendorDragOver(false);
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) setVendorFiles(prev => [...prev, ...files]);
+  };
+
   if (!data) return <div className="info-card">Loading...</div>;
 
   const quotes = data.documents?.filter(doc => doc.document_type === 'QUOTE') || [];
   const dfms = data.documents?.filter(doc => doc.document_type === 'DFM') || [];
+  const vendorDocs = data.documents?.filter(doc => doc.document_type === 'VENDOR_DOCUMENT') || [];
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -79,6 +96,23 @@ const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
     }
   };
 
+  const handleVendorUpload = async () => {
+    if (vendorFiles.length === 0) { toast.error("Please select at least one document"); return; }
+    try {
+      setIsUploadingVendor(true);
+      await enquiryService.uploadEnquiryDocuments(data.id, vendorFiles, null, 'VENDOR_DOCUMENT', vendorRemarks);
+      toast.success("Vendor document uploaded successfully");
+      setVendorFiles([]);
+      setVendorRemarks('');
+      setIsVendorModalOpen(false);
+      window.location.reload();
+    } catch (error) {
+      toast.error(error.message || "Failed to upload vendor document");
+    } finally {
+      setIsUploadingVendor(false);
+    }
+  };
+
   const handleApprove = () => {
     onApprovePO();
   };
@@ -97,6 +131,119 @@ const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
 
   return (
     <div className="enquiry-info-wrapper">
+      {/* Vendor Document Upload Modal */}
+      {isVendorModalOpen && (
+        <div className="dfm-modal-overlay" onClick={() => setIsVendorModalOpen(false)}>
+          <div className="dfm-modal" style={{ borderTop: '4px solid #8b5cf6' }} onClick={(e) => e.stopPropagation()}>
+            <div className="dfm-modal-header">
+              <h3 style={{ color: '#6d28d9' }}><FiTruck /> Add Vendor Document</h3>
+              <button 
+                className="dfm-modal-close" 
+                onClick={() => { setIsVendorModalOpen(false); setVendorFiles([]); setVendorRemarks(''); }}
+              >
+                <FiX />
+              </button>
+            </div>
+            <div className="dfm-modal-body">
+              <div className="dfm-modal-field">
+                <label className="dfm-modal-label">Vendor Reference Files <span style={{ color: '#e53e3e' }}>*</span></label>
+                <div 
+                  className={`dfm-modal-file-zone ${isVendorDragOver ? 'drag-over' : vendorFiles.length > 0 ? 'has-file' : ''}`}
+                  style={isVendorDragOver ? { borderColor: '#8b5cf6', background: '#f5f3ff' } : vendorFiles.length > 0 ? { borderColor: '#8b5cf6', background: '#f5f3ff' } : {}}
+                  onDragOver={handleVendorDragOver}
+                  onDragLeave={handleVendorDragLeave}
+                  onDrop={handleVendorDrop}
+                >
+                  <FiUpload size={28} color={isVendorDragOver ? '#8b5cf6' : '#94a3b8'} />
+                  <p className="dfm-zone-title">
+                    {isVendorDragOver ? 'Drop files here' : 'Drag & drop or click to browse'}
+                  </p>
+                  <p className="dfm-zone-hint">PDF, Images, Excel, or any vendor reference doc</p>
+                  <input 
+                    type="file"
+                    multiple
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files);
+                      if (files.length > 0) setVendorFiles(prev => [...prev, ...files]);
+                    }}
+                    style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }}
+                  />
+                </div>
+
+                {/* File Previews */}
+                {vendorFiles.length > 0 && (
+                  <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b' }}>SELECTED FILES ({vendorFiles.length})</span>
+                      <button 
+                        onClick={() => setVendorFiles([])} 
+                        style={{ fontSize: '0.75rem', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+                      >
+                        Clear All
+                      </button>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '0.75rem' }}>
+                      {vendorFiles.map((file, idx) => {
+                        const isImage = file.type.startsWith('image/');
+                        return (
+                          <div key={idx} style={{ position: 'relative', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '4px', backgroundColor: '#f8fafc' }}>
+                            <button 
+                              onClick={() => setVendorFiles(prev => prev.filter((_, i) => i !== idx))}
+                              style={{ position: 'absolute', top: '-6px', right: '-6px', width: '20px', height: '20px', borderRadius: '50%', backgroundColor: '#ef4444', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', zIndex: 5, boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+                            >
+                              <FiX size={12} />
+                            </button>
+                            {isImage ? (
+                              <img 
+                                src={URL.createObjectURL(file)} 
+                                alt="preview" 
+                                style={{ width: '100%', height: '70px', objectFit: 'cover', borderRadius: '6px' }} 
+                              />
+                            ) : (
+                              <div style={{ width: '100%', height: '70px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f5f3ff', borderRadius: '6px', color: '#7c3aed' }}>
+                                <FiFileText size={24} />
+                              </div>
+                            )}
+                            <div style={{ fontSize: '0.65rem', color: '#475569', textAlign: 'center', marginTop: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '0 2px' }}>
+                              {file.name}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="dfm-modal-field">
+                <label className="dfm-modal-label">Internal Remarks</label>
+                <textarea
+                  placeholder="Notes about this vendor document..."
+                  value={vendorRemarks}
+                  onChange={(e) => setVendorRemarks(e.target.value)}
+                  className="dfm-modal-textarea"
+                />
+              </div>
+            </div>
+            <div className="dfm-modal-footer">
+              <button 
+                className="dfm-modal-cancel"
+                onClick={() => { setIsVendorModalOpen(false); setVendorFiles([]); setVendorRemarks(''); }}
+              >
+                Cancel
+              </button>
+              <button 
+                className="dfm-modal-submit"
+                style={{ backgroundColor: '#8b5cf6' }}
+                onClick={handleVendorUpload}
+                disabled={isUploadingVendor || vendorFiles.length === 0}
+              >
+                {isUploadingVendor ? 'Uploading...' : 'Upload Document'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* DFM Upload Modal */}
       {isDfmModalOpen && (
         <div className="dfm-modal-overlay" onClick={() => setIsDfmModalOpen(false)}>
@@ -318,17 +465,9 @@ const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
         {/* Right Column: Sticky Sidebar */}
         <div className="dashboard-sidebar">
           <div className="sticky-panel">
-            {/* Cost Summary Card */}
+            {/* Actions Card */}
             <div className="cost-summary-card">
-                <div className="card-title" style={{ border: 'none', marginBottom: '0.5rem' }}>Pricing Summary</div>
-                <div className="cost-row">
-                    <span className="cost-label">Base Cost</span>
-                    <span className="cost-value">---</span>
-                </div>
-                <div className="cost-row">
-                    <span className="total-cost-label">Total Cost</span>
-                    <span className="total-cost-value">{quotes.length > 0 ? 'Quoted' : 'Not Quoted'}</span>
-                </div>
+                <div className="card-title" style={{ border: 'none', marginBottom: '0.5rem' }}>Enquiry Actions</div>
                 
                 {data.status !== 'ORDER_GENERATED' && data.status !== 'CANCELLED' && (
                     <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -340,6 +479,15 @@ const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
                         <button onClick={handleApprove} className="confirm-order-btn" style={{ width: '100%', padding: '0.85rem', borderRadius: '8px', fontWeight: 700, fontSize: '1rem' }}>
                             {data.status === 'PO_UPLOADED' ? 'Complete Order' : 'Generate Order'}
                         </button>
+                        {data.status === 'PARKED' ? (
+                            <button onClick={() => onUpdateStatus('PENDING', 'Unparked manually')} className="btn-secondary-action" style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', cursor: 'pointer' }}>
+                                Unpark Enquiry
+                            </button>
+                        ) : (
+                            <button onClick={() => onUpdateStatus('PARKED', 'Parked manually')} className="btn-secondary-action" style={{ width: '100%', padding: '0.75rem', color: '#b45309', background: '#fef3c7', border: '1px solid #fde68a', borderRadius: '8px', cursor: 'pointer' }}>
+                                Park Enquiry
+                            </button>
+                        )}
                     </div>
                 )}
             </div>
@@ -444,6 +592,56 @@ const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
                         <FiTool size={28} color="#bbf7d0" />
                         <p>No DFM analysis uploaded yet.</p>
                         <p style={{ fontSize: '0.75rem' }}>Click "Add DFM" to upload one.</p>
+                    </div>
+                )}
+            </div>
+
+            {/* Vendor Documents Card */}
+            <div className="info-card vendor-upload-card">
+                <h3 className="card-title" style={{ justifyContent: 'space-between' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <FiTruck /> Vendor Documents
+                    </span>
+                    <button 
+                        className="btn-add-vendor"
+                        onClick={() => setIsVendorModalOpen(true)}
+                    >
+                        <FiPlus size={14} /> Add Doc
+                    </button>
+                </h3>
+                {vendorDocs.length > 0 ? (
+                    <div className="dfm-entries-list">
+                        {vendorDocs.map((d, i) => (
+                            <div key={i} className="dfm-entry" style={{ background: '#f5f3ff', borderColor: '#ddd6fe' }}>
+                                <div className="dfm-entry-header">
+                                    <span className="dfm-entry-label" style={{ color: '#5b21b6' }}>Doc #{i + 1} ({d.file_name})</span>
+                                    <a 
+                                        href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/${d.file_path}`} 
+                                        target="_blank" 
+                                        rel="noreferrer" 
+                                        className="view-link"
+                                        style={{ color: '#7c3aed' }}
+                                    >
+                                        {d.file_name?.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                                            <img 
+                                                src={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/${d.file_path}`} 
+                                                alt={d.file_name}
+                                                style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #e2e8f0' }}
+                                            />
+                                        ) : 'VIEW'}
+                                    </a>
+                                </div>
+                                {d.remarks && (
+                                    <p className="dfm-entry-remarks" style={{ borderLeftColor: '#8b5cf6' }}>{d.remarks}</p>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="dfm-empty-state">
+                        <FiTruck size={28} color="#ddd6fe" />
+                        <p>No vendor documents uploaded.</p>
+                        <p style={{ fontSize: '0.75rem' }}>Click "Add Doc" to upload one.</p>
                     </div>
                 )}
             </div>

@@ -7,7 +7,7 @@ import '../styles/ViewDetails.css';
 
 const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
-function FileUploadZone({ label, accentColor, bgColor, borderColor, onUpload, uploading, existingFiles }) {
+function FileUploadZone({ label, accentColor, bgColor, borderColor, onUpload, uploading, existingFiles, onDownload }) {
   const inputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
 
@@ -35,12 +35,11 @@ function FileUploadZone({ label, accentColor, bgColor, borderColor, onUpload, up
                 </span>
               </div>
               <a
-                href={doc.file_path?.startsWith('http') ? doc.file_path : `${BASE_URL}/${doc.file_path}`}
-                target="_blank"
-                rel="noreferrer"
+                href="#download"
+                onClick={(e) => { e.preventDefault(); onDownload(doc.file_path, doc.file_name); }}
                 style={{ fontSize: '0.75rem', fontWeight: 700, color: accentColor, textDecoration: 'none', padding: '0.3rem 0.75rem', borderRadius: '6px', border: `1px solid ${accentColor}`, whiteSpace: 'nowrap', flexShrink: 0 }}
               >
-                View
+                Download
               </a>
             </div>
           ))}
@@ -128,6 +127,25 @@ function ViewDetails() {
       setUploadingQc(false);
     }
   };
+  
+  const handleDownload = async (filePath, fileName) => {
+    try {
+      const url = filePath.startsWith('http') ? filePath : `${BASE_URL}/${filePath}`;
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName || filePath.split('/').pop();
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error('Download error:', err);
+      window.open(filePath.startsWith('http') ? filePath : `${BASE_URL}/${filePath}`, '_blank');
+    }
+  };
 
   if (loading) return <div style={{ padding: '2rem' }}>Loading order details...</div>;
   if (!order) return <div style={{ padding: '2rem' }}>Order not found</div>;
@@ -159,7 +177,7 @@ function ViewDetails() {
 
       <div className="order-id-display">
         <FiShoppingBag size={20} color="var(--primary)" />
-        <span style={{ fontWeight: 800 }}>ORD #{order.order_number}</span>
+        <span style={{ fontWeight: 800 }}>{order.order_number}</span>
       </div>
 
       <div className="details-layout">
@@ -231,7 +249,7 @@ function ViewDetails() {
           <div className="detail-section">
             <h3 className="section-title"><FiPackage size={20} /> Client Information</h3>
             <div className="data-grid">
-              <div className="data-item"><label>Customer Name</label><span>{order.customer?.name}</span></div>
+              <div className="data-item"><label>Customer Name</label><span>{order.customer?.company_name ? `${order.customer.company_name} - ${order.customer?.name}` : order.customer?.name}</span></div>
               <div className="data-item"><label>Inquiry Origin</label><span>{order.enquiry?.enquiry_number || 'Direct Order'}</span></div>
             </div>
           </div>
@@ -254,6 +272,7 @@ function ViewDetails() {
               onUpload={handleCamUpload}
               uploading={uploadingCam}
               existingFiles={camFiles}
+              onDownload={handleDownload}
             />
           </div>
 
@@ -267,6 +286,7 @@ function ViewDetails() {
               onUpload={handleQcUpload}
               uploading={uploadingQc}
               existingFiles={qcFiles}
+              onDownload={handleDownload}
             />
           </div>
 
@@ -286,7 +306,7 @@ function ViewDetails() {
                         {doc.uploader && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>by {doc.uploader.name}</div>}
                       </div>
                     </div>
-                    <a href={doc.file_path?.startsWith('http') ? doc.file_path : `${BASE_URL}/${doc.file_path}`} target="_blank" rel="noreferrer" style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary)', textDecoration: 'none', padding: '0.4rem 0.8rem', borderRadius: '6px', border: '1px solid var(--primary)', whiteSpace: 'nowrap' }}>View</a>
+                    <a href="#download" onClick={(e) => { e.preventDefault(); handleDownload(doc.file_path, doc.file_name); }} style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary)', textDecoration: 'none', padding: '0.4rem 0.8rem', borderRadius: '6px', border: '1px solid var(--primary)', whiteSpace: 'nowrap' }}>Download</a>
                   </div>
                 ))
               ) : (

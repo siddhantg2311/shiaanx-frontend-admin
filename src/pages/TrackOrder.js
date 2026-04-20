@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiClock, FiCheckCircle, FiEdit2, FiTruck, FiFileText, FiUpload, FiX, FiDownload } from 'react-icons/fi';
+import { FiArrowLeft, FiClock, FiCheckCircle, FiEdit2, FiTruck, FiFileText, FiUpload, FiX, FiDownload, FiLoader } from 'react-icons/fi';
 import orderService from '../services/orderService';
 import toast from 'react-hot-toast';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
@@ -16,6 +16,9 @@ function TrackOrder() {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [statusReason, setStatusReason] = useState('');
+  const [timelineNote, setTimelineNote] = useState('');
+  const [BASE_URL] = useState(process.env.REACT_APP_API_URL || 'http://localhost:8000');
 
   const fetchOrderDetails = async () => {
     try {
@@ -35,16 +38,37 @@ function TrackOrder() {
   }, [id, navigate]);
 
   const handleUpdateStatus = async () => {
-      try {
-          await orderService.updateStatus(id, newStatus, 'Status updated by admin');
-          toast.success('Order status updated');
-          setIsEditingStatus(false);
-          setIsModalOpen(false);
-          fetchOrderDetails();
-      } catch (err) {
-          toast.error(err.message || 'Failed to update status');
-          setIsModalOpen(false);
-      }
+    try {
+      const reason = statusReason || 'Status updated by admin';
+      await orderService.updateStatus(id, newStatus, reason);
+      toast.success('Order status updated');
+      setIsEditingStatus(false);
+      setIsModalOpen(false);
+      setStatusReason('');
+      fetchOrderDetails();
+    } catch (err) {
+      toast.error(err.message || 'Failed to update status');
+      setIsModalOpen(false);
+    }
+  };
+
+  const handleDownload = async (filePath, fileName) => {
+    try {
+      const url = filePath.startsWith('http') ? filePath : `${BASE_URL}/${filePath}`;
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName || filePath.split('/').pop();
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error('Download error:', err);
+      window.open(filePath.startsWith('http') ? filePath : `${BASE_URL}/${filePath}`, '_blank');
+    }
   };
 
   const handleFileUpload = async (e) => {
@@ -60,9 +84,10 @@ function TrackOrder() {
     if (selectedFiles.length === 0) return;
     setIsUploading(true);
     try {
-      await orderService.uploadDocuments(id, selectedFiles);
-      toast.success('Documents uploaded successfully');
+      await orderService.uploadDocuments(id, selectedFiles, timelineNote);
+      toast.success('Documents and note posted successfully');
       setSelectedFiles([]);
+      setTimelineNote('');
       fetchOrderDetails();
     } catch (err) {
       toast.error(err.message || 'Failed to upload documents');
@@ -71,18 +96,36 @@ function TrackOrder() {
     }
   };
 
+  const handlePostTimelineUpdate = async () => {
+    const hasFiles = selectedFiles.length > 0;
+    const hasNote = timelineNote.trim() !== '';
+
+    if (hasFiles) {
+      await submitDocuments();
+    } else if (hasNote) {
+      // Logic for note only: call updateStatus with current status to log the note
+      setIsUploading(true);
+      try {
+        await orderService.updateStatus(id, order.status, timelineNote);
+        toast.success('Note posted to timeline');
+        setTimelineNote('');
+        fetchOrderDetails();
+      } catch (err) {
+        toast.error(err.message || 'Failed to post note');
+      } finally {
+        setIsUploading(false);
+      }
+    } else {
+      toast.error('Please add a note or select a file to post an update.');
+    }
+  };
+
   if (loading) return <div style={{ padding: '2rem' }}>Loading timeline...</div>;
   if (!order) return <div style={{ padding: '2rem' }}>Order not found</div>;
 
-  // Define valid transitions (matching backend)
-  const validTransitions = {
-      'PROCESSING': ['IN_TRANSIT', 'CANCELLED'],
-      'IN_TRANSIT': ['DELIVERED', 'CANCELLED'],
-      'DELIVERED': [],
-      'CANCELLED': []
-  };
-
-  const availableNextStatuses = validTransitions[order.status] || [];
+  // Define valid transitions (allow backwards matching backend)
+  const allStatuses = ['PROCESSING', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED'];
+  const availableNextStatuses = allStatuses.filter(s => s !== order.status);
 
   // Combine status history and documents into events
   const events = [
@@ -152,12 +195,17 @@ function TrackOrder() {
                                   <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>{event.change_reason || 'Status updated by system'}</p>
                               ) : (
                                   <div style={{ marginTop: '0.75rem' }}>
+                                      {event.remarks && (
+                                          <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.875rem', color: 'var(--text-muted)', fontStyle: 'italic', background: 'var(--background)', padding: '0.5rem 0.75rem', borderRadius: '8px', borderLeft: '3px solid #10b981' }}>
+                                              "{event.remarks}"
+                                          </p>
+                                      )}
                                       <button 
                                           className="blue-box" 
-                                          onClick={() => window.open(`http://localhost:8000/${event.file_path}`, '_blank')}
-                                          style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', cursor: 'pointer', border: 'none', background: '#f0fdf4', color: '#166534', fontWeight: 700 }}
+                                          onClick={() => handleDownload(event.file_path, event.file_name)}
+                                          style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', cursor: 'pointer', border: 'none', background: '#f0fdf4', color: '#166534', fontWeight: 700, borderRadius: '8px' }}
                                       >
-                                          <FiDownload size={14} /> View Document ({(event.file_size_kb / 1024).toFixed(2)} MB)
+                                          <FiDownload size={14} /> Download Document ({(event.file_size_kb / 1024).toFixed(2)} MB)
                                       </button>
                                   </div>
                               )}
@@ -181,112 +229,133 @@ function TrackOrder() {
         </div>
         
         <div className="split-right" style={{ flex: '0.8' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3>Current Control</h3>
-              <button 
-                  onClick={() => {
-                      if (availableNextStatuses.length > 0) {
-                          setIsEditingStatus(!isEditingStatus);
-                          if (!isEditingStatus) setNewStatus(availableNextStatuses[0]);
-                      } else {
-                          toast.error('No further status updates are possible for this order.');
-                      }
-                  }}
-                  disabled={availableNextStatuses.length === 0}
-                  style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: '0.5rem', 
-                      background: availableNextStatuses.length > 0 ? 'var(--primary-light)' : 'var(--background)', 
-                      border: 'none', 
-                      color: availableNextStatuses.length > 0 ? 'var(--primary)' : 'var(--text-muted)', 
-                      padding: '0.5rem 1rem', 
-                      borderRadius: '8px', 
-                      cursor: availableNextStatuses.length > 0 ? 'pointer' : 'not-allowed', 
-                      fontWeight: 700, 
-                      fontSize: '0.875rem' 
-                  }}
-              >
-                  <FiEdit2 size={14} /> Update Status
-              </button>
-          </div>
-          
-          <div className="status-control">
-            {isEditingStatus ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <select 
-                        value={newStatus} 
-                        onChange={(e) => setNewStatus(e.target.value)}
-                        style={{ width: '100%', borderRadius: '12px' }}
-                    >
-                        {availableNextStatuses.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                    <div style={{ display: 'flex', gap: '0.75rem' }}>
-                        <button 
-                            onClick={() => setIsModalOpen(true)}
-                            style={{ flex: 1, padding: '0.75rem', backgroundColor: 'var(--primary)', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 700, cursor: 'pointer' }}
-                        >
-                            Confirm
-                        </button>
-                        <button 
-                            onClick={() => setIsEditingStatus(false)}
-                            style={{ flex: 1, padding: '0.75rem', backgroundColor: 'var(--background)', border: '1px solid var(--border)', borderRadius: '10px', fontWeight: 700, cursor: 'pointer' }}
-                        >
-                            Cancel
-                        </button>
-                    </div>
-                </div>
-            ) : (
-                <div style={{ background: 'linear-gradient(135deg, var(--primary) 0%, #1a4d94 100%)', color: 'white', padding: '2rem', borderRadius: '20px', textAlign: 'center', boxShadow: '0 8px 16px rgba(33, 96, 183, 0.15)' }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.8, marginBottom: '0.5rem', letterSpacing: '0.1em' }}>Actual Status</div>
-                    <div style={{ fontSize: '1.75rem', fontWeight: 800 }}>{order.status.replace(/_/g, ' ')}</div>
-                </div>
-            )}
-            
-            <div style={{ marginTop: '2.5rem' }}>
-                <h3 style={{ fontSize: '1.125rem', marginBottom: '1rem' }}>Upload Documents</h3>
-                <div 
-                    onClick={() => document.getElementById('file-upload').click()}
-                    style={{ border: '2px dashed var(--border)', borderRadius: '16px', padding: '2rem', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s ease' }}
-                    onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
-                    onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
-                >
-                    <FiUpload size={32} color="var(--text-muted)" style={{ marginBottom: '1rem' }} />
-                    <p style={{ margin: 0, fontWeight: 600, color: 'var(--text-main)' }}>Click to add files</p>
-                    <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>PDF, JPG, PNG or DWG (Max 10MB)</p>
-                    <input id="file-upload" type="file" multiple hidden onChange={handleFileUpload} />
-                </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+              {/* Card 1: Status Control */}
+              <div className="status-control" style={{ background: 'white', padding: '1.5rem', borderRadius: '24px', border: '1px solid var(--border)', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
+                  <h3 style={{ fontSize: '1.125rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <FiTruck size={18} color="var(--primary)" /> Status Management
+                  </h3>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      <div style={{ background: 'var(--background)', padding: '1rem', borderRadius: '12px', textAlign: 'center', marginBottom: '0.5rem' }}>
+                          <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Actual Status</div>
+                          <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary)' }}>{order.status.replace(/_/g, ' ')}</div>
+                      </div>
 
-                {selectedFiles.length > 0 && (
-                    <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                        {selectedFiles.map((file, idx) => (
-                            <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', background: 'var(--background)', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden' }}>
-                                    <FiFileText size={16} color="var(--primary)" />
-                                    <span style={{ fontSize: '0.85rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.name}</span>
-                                </div>
-                                <FiX size={16} color="var(--text-muted)" style={{ cursor: 'pointer' }} onClick={() => removeFile(idx)} />
-                            </div>
-                        ))}
-                        <button 
-                            className="btn-confirm" 
-                            disabled={isUploading}
-                            onClick={submitDocuments}
-                            style={{ marginTop: '0.5rem', width: '100%', padding: '1rem', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 800, cursor: isUploading ? 'not-allowed' : 'pointer', opacity: isUploading ? 0.7 : 1 }}
-                        >
-                            {isUploading ? 'Uploading...' : 'Verify & Post Documents'}
-                        </button>
-                    </div>
-                )}
-            </div>
+                      <div>
+                          <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.5rem', display: 'block' }}>Update to New Status</label>
+                          <select 
+                              value={newStatus} 
+                              onChange={(e) => setNewStatus(e.target.value)}
+                              style={{ width: '100%', borderRadius: '12px', padding: '0.75rem', border: '1px solid var(--border)', fontSize: '0.9rem', fontWeight: 600 }}
+                          >
+                              <option value={order.status}>No Change</option>
+                              {availableNextStatuses.map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
+                          </select>
+                      </div>
+
+                      {newStatus !== order.status && (
+                          <div>
+                              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.5rem', display: 'block' }}>Reason for Change (Optional)</label>
+                              <textarea 
+                                  value={statusReason}
+                                  onChange={(e) => setStatusReason(e.target.value)}
+                                  placeholder="Why is this status being updated?..."
+                                  style={{ width: '100%', borderRadius: '12px', padding: '0.75rem', border: '1px solid var(--border)', fontSize: '0.9rem', minHeight: '80px', resize: 'vertical' }}
+                              />
+                          </div>
+                      )}
+
+                      <button 
+                          onClick={() => setIsModalOpen(true)}
+                          disabled={newStatus === order.status}
+                          style={{ 
+                              width: '100%', 
+                              padding: '1rem', 
+                              background: newStatus !== order.status ? 'var(--primary)' : 'var(--background)', 
+                              color: newStatus !== order.status ? 'white' : 'var(--text-muted)', 
+                              border: 'none', 
+                              borderRadius: '12px', 
+                              fontWeight: 800, 
+                              cursor: newStatus !== order.status ? 'pointer' : 'not-allowed',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '0.5rem'
+                          }}
+                      >
+                          <FiCheckCircle size={18} /> Update Status
+                      </button>
+                  </div>
+              </div>
+
+              {/* Card 2: Project Updates */}
+              <div className="status-control" style={{ background: 'white', padding: '1.5rem', borderRadius: '24px', border: '1px solid var(--border)', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
+                  <h3 style={{ fontSize: '1.125rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <FiEdit2 size={18} color="var(--primary)" /> Project Updates
+                  </h3>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                      <div>
+                          <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.5rem', display: 'block' }}>General Remarks / Notes</label>
+                          <textarea 
+                              value={timelineNote}
+                              onChange={(e) => setTimelineNote(e.target.value)}
+                              placeholder="Add an internal progress note..."
+                              style={{ width: '100%', borderRadius: '12px', padding: '0.75rem', border: '1px solid var(--border)', fontSize: '0.9rem', minHeight: '100px', resize: 'vertical' }}
+                          />
+                      </div>
+
+                      <div>
+                          <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.5rem', display: 'block' }}>Documents / Attachments</label>
+                          <div 
+                              onClick={() => document.getElementById('file-upload').click()}
+                              style={{ border: '2px dashed var(--border)', borderRadius: '12px', padding: '1.25rem', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s ease', background: 'var(--background)' }}
+                              onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
+                              onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+                          >
+                              <FiUpload size={24} color="var(--text-muted)" style={{ marginBottom: '0.5rem' }} />
+                              <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>Click to add files</p>
+                              <input id="file-upload" type="file" multiple hidden onChange={handleFileUpload} />
+                          </div>
+
+                          {selectedFiles.length > 0 && (
+                              <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                  {selectedFiles.map((file, idx) => (
+                                      <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0.75rem', background: 'white', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden' }}>
+                                              <FiFileText size={14} color="var(--primary)" />
+                                              <span style={{ fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.name}</span>
+                                          </div>
+                                          <FiX size={14} color="var(--text-muted)" style={{ cursor: 'pointer' }} onClick={() => removeFile(idx)} />
+                                      </div>
+                                  ))}
+                              </div>
+                          )}
+                      </div>
+
+                      <button 
+                          className="btn-confirm" 
+                          disabled={isUploading}
+                          onClick={handlePostTimelineUpdate}
+                          style={{ marginTop: '0.5rem', width: '100%', padding: '1rem', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 800, cursor: isUploading ? 'not-allowed' : 'pointer', opacity: isUploading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem' }}
+                      >
+                          {isUploading ? (
+                              <><FiLoader className="spin" /> Posting...</>
+                          ) : (
+                              <><FiCheckCircle size={18} /> Post Update to Timeline</>
+                          )}
+                      </button>
+                  </div>
+              </div>
             
-            <div style={{ marginTop: '2.5rem' }}>
-                <label style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.75rem', display: 'block' }}>Logistics Tracking</label>
-                <div className="blue-box" style={{ padding: '1.25rem', fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <FiTruck size={20} color="var(--primary)" />
-                    {order.tracking_number || 'Awaiting tracking ID'}
-                </div>
-            </div>
+              <div style={{ marginTop: '0.5rem', padding: '1rem', background: 'rgba(33, 96, 183, 0.05)', borderRadius: '16px', border: '1px solid rgba(33, 96, 183, 0.1)' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '0.5rem', display: 'block', textTransform: 'uppercase' }}>Logistics Tracking</label>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-main)' }}>
+                      <FiTruck size={18} color="var(--primary)" />
+                      {order.tracking_number || 'Awaiting tracking ID'}
+                  </div>
+              </div>
           </div>
         </div>
       </div>

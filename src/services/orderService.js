@@ -55,12 +55,13 @@ const orderService = {
     }
   },
 
-  uploadDocuments: async (id, files) => {
+  uploadDocuments: async (id, files, remarks = '') => {
     try {
       const formData = new FormData();
       files.forEach(file => {
         formData.append('documents', file);
       });
+      if (remarks) formData.append('remarks', remarks);
       const response = await api.post(`/admin/orders/${id}/documents`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
@@ -70,12 +71,13 @@ const orderService = {
     }
   },
 
-  uploadCamFile: async (id, files) => {
+  uploadCamFile: async (id, files, remarks = '') => {
     try {
       const formData = new FormData();
       files.forEach(file => {
         formData.append('documents', file);
       });
+      if (remarks) formData.append('remarks', remarks);
       const response = await api.post(`/admin/orders/${id}/cam-file`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
@@ -85,12 +87,13 @@ const orderService = {
     }
   },
 
-  uploadQcReport: async (id, files) => {
+  uploadQcReport: async (id, files, remarks = '') => {
     try {
       const formData = new FormData();
       files.forEach(file => {
         formData.append('documents', file);
       });
+      if (remarks) formData.append('remarks', remarks);
       const response = await api.post(`/admin/orders/${id}/qc-report`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });

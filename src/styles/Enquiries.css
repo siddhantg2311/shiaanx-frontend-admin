@@ -205,6 +205,27 @@
   width: 100%;
 }
 
+/* Tabs styling */
+.status-tabs {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+.status-tab {
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid #2160b7;
+  background: white;
+  color: #2160b7;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.status-tab.active {
+  background: #2160b7;
+  color: white;
+}
+
 .page-header {
   display: flex;
   justify-content: space-between;

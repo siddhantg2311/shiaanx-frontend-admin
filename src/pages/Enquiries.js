@@ -11,19 +11,20 @@ function Enquiries() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ pending: 0, ready: 0 });
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState('ACTIVE');
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
   const [meta, setMeta] = useState({ totalItems: 0, totalPages: 1 });
 
   useEffect(() => {
     fetchEnquiries();
-  }, [page]);
+  }, [page, activeTab]);
 
   const fetchEnquiries = async () => {
     setLoading(true);
     try {
       const offset = (page - 1) * limit;
-      const response = await enquiryService.getEnquiries({ limit, offset });
+      const response = await enquiryService.getEnquiries({ limit, offset, status: activeTab });
       const items = response.items || [];
       const pagination = response.meta || { totalItems: 0, totalPages: 1 };
 
@@ -79,6 +80,12 @@ function Enquiries() {
             Flagged Issues
           </button>
         </div>
+      </div>
+
+      <div className="status-tabs">
+        <button className={`status-tab ${activeTab === 'ACTIVE' ? 'active' : ''}`} onClick={() => { setActiveTab('ACTIVE'); setPage(1); }}>Active Enquiries</button>
+        <button className={`status-tab ${activeTab === 'PARKED' ? 'active' : ''}`} onClick={() => { setActiveTab('PARKED'); setPage(1); }}>Parked</button>
+        <button className={`status-tab ${activeTab === 'ALL' ? 'active' : ''}`} onClick={() => { setActiveTab('ALL'); setPage(1); }}>All</button>
       </div>
 
       <div className="search-bar">

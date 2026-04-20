@@ -146,18 +146,13 @@ function Orders() {
             <div key={order.id} className="order-card" style={{ backgroundColor: 'white', padding: '1.75rem', borderRadius: '20px' }}>
               <div className="order-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '1.25rem' }}>
                 <div className="order-id-section">
-                  <span className="order-id" style={{ fontWeight: 800, fontSize: '1.125rem', color: 'var(--text-main)' }}>ORD #{order.order_number}</span>
+                  <span className="order-id" style={{ fontWeight: 800, fontSize: '1.125rem', color: 'var(--text-main)' }}>{order.order_number}</span>
                   <span className="order-date" style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>{new Date(order.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                 </div>
                 <div style={{ position: 'relative' }}>
                   {(() => {
-                    const validTransitions = {
-                        'PROCESSING': ['IN_TRANSIT', 'CANCELLED'],
-                        'IN_TRANSIT': ['DELIVERED', 'CANCELLED'],
-                        'DELIVERED': [],
-                        'CANCELLED': []
-                    };
-                    const availableNext = validTransitions[order.status] || [];
+                    const allStatuses = ['PROCESSING', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED'];
+                    const availableNext = allStatuses.filter(s => s !== order.status);
                     const isDropdownOpen = openDropdownOrderId === order.id;
 
                     return (
@@ -250,7 +245,7 @@ function Orders() {
                 <div className="product-info">
                   <h3 style={{ margin: '0 0 0.75rem 0', fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)' }}>{order.technology?.name || order.processing_technology || 'Custom Part'}</h3>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', color: 'var(--text-muted)' }}>
-                    <p style={{ margin: 0, fontSize: '0.925rem' }}><strong>Customer:</strong> <span style={{ color: 'var(--text-main)' }}>{order.customer?.name}</span></p>
+                    <p style={{ margin: 0, fontSize: '0.925rem' }}><strong>Customer:</strong> <span style={{ color: 'var(--text-main)' }}>{order.customer?.company_name ? `${order.customer.company_name} (${order.customer?.name})` : order.customer?.name}</span></p>
                     <p style={{ margin: 0, fontSize: '0.925rem' }}><strong>Quantity:</strong> <span style={{ color: 'var(--text-main)' }}>{order.quantity}</span></p>
                     <p className="tracking" style={{ margin: 0, fontSize: '0.925rem' }}><strong>Tracking:</strong> <span style={{ color: 'var(--primary)' }}>{order.tracking_number || 'Not Assigned'}</span></p>
                   </div>

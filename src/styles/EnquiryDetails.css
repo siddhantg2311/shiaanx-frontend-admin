@@ -387,6 +387,10 @@
     border-top: 4px solid #16a34a;
 }
 
+.vendor-upload-card {
+    border-top: 4px solid #8b5cf6;
+}
+
 .quote-zone {
     background: #f0f7ff;
     border-color: #bfdbfe;
@@ -510,6 +514,26 @@
 
 .btn-add-dfm:hover {
     background: #15803d;
+}
+
+.btn-add-vendor {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.35rem 0.8rem;
+    background: #8b5cf6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+
+.btn-add-vendor:hover {
+    background: #7c3aed;
 }
 
 /* DFM Entries List */

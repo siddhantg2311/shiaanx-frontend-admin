@@ -4,6 +4,7 @@ import { FiX } from 'react-icons/fi';
 const OrderGenerationModal = ({ isOpen, onClose, onSubmit, enquiryData }) => {
   const [items, setItems] = useState([]);
   const [taxAmount, setTaxAmount] = useState('0');
+  const [taxPercent, setTaxPercent] = useState('0');
   const [discountAmount, setDiscountAmount] = useState('0');
   const [expectedDate, setExpectedDate] = useState('');
   const [adminNotes, setAdminNotes] = useState('');
@@ -28,18 +29,63 @@ const OrderGenerationModal = ({ isOpen, onClose, onSubmit, enquiryData }) => {
     }
   }, [enquiryData]);
 
-  if (!isOpen) return null;
-
-  const handleItemPriceChange = (index, price) => {
+  const handleItemChange = (index, field, value) => {
     const newItems = [...items];
-    newItems[index].unit_price = price;
-    newItems[index].total_price = (parseFloat(price || 0) * parseInt(newItems[index].quantity)).toFixed(2);
+    newItems[index][field] = value;
+    
+    // Recalculate total for this item
+    const qty = parseInt(newItems[index].quantity || 0);
+    const price = parseFloat(newItems[index].unit_price || 0);
+    newItems[index].total_price = (qty * price).toFixed(2);
+    
     setItems(newItems);
+  };
+
+  const handleAddExtraItem = () => {
+    setItems([...items, {
+      item_name: '',
+      quantity: 1,
+      unit_price: '0',
+      total_price: '0'
+    }]);
+  };
+
+  const handleDeleteItem = (index) => {
+    setItems(items.filter((_, i) => i !== index));
   };
 
   const calculateBasicTotal = () => {
     return items.reduce((sum, item) => sum + parseFloat(item.total_price || 0), 0).toFixed(2);
   };
+
+  // Auto-update tax amount when Basic Total changes if a percentage was set
+  useEffect(() => {
+    const basic = parseFloat(calculateBasicTotal());
+    if (taxPercent && parseFloat(taxPercent) > 0) {
+        const calculatedAmount = (basic * parseFloat(taxPercent)) / 100;
+        setTaxAmount(calculatedAmount.toFixed(2));
+    }
+  }, [items, taxPercent]);
+
+  const handleTaxPercentChange = (percent) => {
+    setTaxPercent(percent);
+    const basic = parseFloat(calculateBasicTotal());
+    const amount = (basic * parseFloat(percent || 0)) / 100;
+    setTaxAmount(amount.toFixed(2));
+  };
+
+  const handleTaxAmountChange = (amount) => {
+    setTaxAmount(amount);
+    const basic = parseFloat(calculateBasicTotal());
+    if (basic > 0) {
+        const percent = (parseFloat(amount || 0) / basic) * 100;
+        setTaxPercent(percent.toFixed(2));
+    } else {
+        setTaxPercent('0');
+    }
+  };
+
+  if (!isOpen) return null;
 
   const calculateFinalTotal = () => {
     const basic = parseFloat(calculateBasicTotal());
@@ -75,46 +121,94 @@ const OrderGenerationModal = ({ isOpen, onClose, onSubmit, enquiryData }) => {
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
           <div className="modal-body" style={{ padding: '2rem', overflowY: 'auto', flex: 1 }}>
             {/* Parts Table Section */}
-            <div style={{ marginBottom: '2.5rem' }}>
-                <h4 style={{ margin: '0 0 1rem 0', color: '#1e293b', fontSize: '1.05rem', fontWeight: 600 }}>Order Items</h4>
+            <div style={{ marginBottom: '1.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <h4 style={{ margin: 0, color: '#1e293b', fontSize: '1.05rem', fontWeight: 600 }}>Order Items</h4>
+                    <button 
+                        type="button" 
+                        onClick={handleAddExtraItem}
+                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', backgroundColor: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                        onMouseOver={(e) => { e.target.style.backgroundColor = '#e2e8f0'; }}
+                        onMouseOut={(e) => { e.target.style.backgroundColor = '#f1f5f9'; }}
+                    >
+                        <span>+</span> Add Extra Item
+                    </button>
+                </div>
                 <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                     <thead style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                       <tr>
-                        <th style={{ padding: '0.85rem 1.25rem', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Part Name</th>
-                        <th style={{ padding: '0.85rem 1.25rem', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center', width: '100px' }}>Qty</th>
-                        <th style={{ padding: '0.85rem 1.25rem', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '180px' }}>Unit Price (₹)</th>
-                        <th style={{ padding: '0.85rem 1.25rem', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right', width: '150px' }}>Total</th>
+                        <th style={{ padding: '0.85rem 1.25rem', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Item/Part Name</th>
+                        <th style={{ padding: '0.85rem 1.25rem', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center', width: '80px' }}>Qty</th>
+                        <th style={{ padding: '0.85rem 1.25rem', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', width: '160px' }}>Unit Price (₹)</th>
+                        <th style={{ padding: '0.85rem 1.25rem', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right', width: '120px' }}>Total</th>
+                        <th style={{ padding: '0.85rem 1.25rem', width: '40px' }}></th>
                       </tr>
                     </thead>
                     <tbody style={{ backgroundColor: '#ffffff' }}>
                       {items.map((item, index) => (
                         <tr key={index} style={{ borderBottom: index < items.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
-                          <td style={{ padding: '1rem 1.25rem', fontSize: '0.95rem', color: '#334155', fontWeight: 600 }}>
-                            {item.item_name}
+                          <td style={{ padding: '0.75rem 1.25rem', fontSize: '0.95rem', color: '#334155' }}>
+                            {!item.enquiry_part_id ? (
+                                <input 
+                                    type="text"
+                                    value={item.item_name}
+                                    placeholder="e.g. Delivery Charge"
+                                    onChange={(e) => handleItemChange(index, 'item_name', e.target.value)}
+                                    style={{ width: '100%', padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '4px', outline: 'none', borderStyle: 'dashed', backgroundColor: '#fdfdfd' }}
+                                    required
+                                />
+                            ) : (
+                                <span style={{ fontWeight: 600 }}>{item.item_name}</span>
+                            )}
                           </td>
-                          <td style={{ padding: '1rem 1.25rem', textAlign: 'center', color: '#475569', fontWeight: 600 }}>
-                            {item.quantity}
+                          <td style={{ padding: '0.75rem 1.25rem', textAlign: 'center' }}>
+                            {!item.enquiry_part_id ? (
+                                <input 
+                                    type="number"
+                                    value={item.quantity}
+                                    min="1"
+                                    onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
+                                    style={{ width: '60px', padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '4px', outline: 'none', textAlign: 'center' }}
+                                    required
+                                />
+                            ) : (
+                                <span style={{ fontWeight: 600, color: '#475569' }}>{item.quantity}</span>
+                            )}
                           </td>
-                          <td style={{ padding: '1rem 1.25rem' }}>
+                          <td style={{ padding: '0.75rem 1.25rem' }}>
                             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                              <span style={{ position: 'absolute', left: '0.85rem', color: '#64748b', fontWeight: 500 }}>₹</span>
+                              <span style={{ position: 'absolute', left: '0.65rem', color: '#64748b', fontSize: '0.85rem' }}>₹</span>
                               <input 
                                 type="number" 
-                                style={{ width: '100%', boxSizing: 'border-box', padding: '0.6rem 0.6rem 0.6rem 2rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.95rem', color: '#1e293b', outline: 'none', transition: 'all 0.2s', backgroundColor: '#f8fafc' }}
+                                style={{ width: '100%', boxSizing: 'border-box', padding: '0.5rem 0.5rem 0.5rem 1.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.95rem', color: '#1e293b', outline: 'none', transition: 'all 0.2s', backgroundColor: '#f8fafc' }}
                                 placeholder="0.00"
                                 value={item.unit_price} 
-                                onChange={(e) => handleItemPriceChange(index, e.target.value)} 
-                                onFocus={(e) => { e.target.style.borderColor = '#3b82f6'; e.target.style.backgroundColor = '#ffffff'; e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'; }}
-                                onBlur={(e) => { e.target.style.borderColor = '#cbd5e1'; e.target.style.backgroundColor = '#f8fafc'; e.target.style.boxShadow = 'none'; }}
+                                onChange={(e) => handleItemChange(index, 'unit_price', e.target.value)} 
+                                onFocus={(e) => { e.target.style.borderColor = '#3b82f6'; e.target.style.backgroundColor = '#ffffff'; }}
+                                onBlur={(e) => { e.target.style.borderColor = '#cbd5e1'; e.target.style.backgroundColor = '#f8fafc'; }}
                                 required 
                                 step="0.01"
                                 min="0"
                               />
                             </div>
                           </td>
-                          <td style={{ padding: '1rem 1.25rem', textAlign: 'right', fontWeight: 700, color: '#0f172a', fontSize: '1.05rem' }}>
+                          <td style={{ padding: '0.75rem 1.25rem', textAlign: 'right', fontWeight: 700, color: '#0f172a', fontSize: '1rem' }}>
                             ₹{item.total_price}
+                          </td>
+                          <td style={{ padding: '0.75rem 1.25rem', textAlign: 'center' }}>
+                            {!item.enquiry_part_id && (
+                                <button 
+                                    type="button"
+                                    onClick={() => handleDeleteItem(index)}
+                                    title="Remove this item"
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '4px' }}
+                                    onMouseOver={(e) => e.currentTarget.style.color = '#ef4444'}
+                                    onMouseOut={(e) => e.currentTarget.style.color = '#94a3b8'}
+                                >
+                                    <FiX size={16} />
+                                </button>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -132,19 +226,35 @@ const OrderGenerationModal = ({ isOpen, onClose, onSubmit, enquiryData }) => {
                     </div>
                     
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                        <label style={{ margin: 0, color: '#475569', fontSize: '0.95rem' }}>Tax Amount:</label>
-                        <div style={{ position: 'relative', width: '160px' }}>
-                            <span style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: '#64748b', fontWeight: 500 }}>₹</span>
-                            <input 
-                                type="number" 
-                                style={{ width: '100%', boxSizing: 'border-box', padding: '0.5rem 0.75rem 0.5rem 2rem', border: '1px solid #cbd5e1', borderRadius: '6px', textAlign: 'right', fontSize: '0.95rem', outline: 'none', transition: 'all 0.2s', backgroundColor: '#ffffff' }}
-                                value={taxAmount} 
-                                onChange={(e) => setTaxAmount(e.target.value)} 
-                                onFocus={(e) => { e.target.style.borderColor = '#3b82f6'; e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'; }}
-                                onBlur={(e) => { e.target.style.borderColor = '#cbd5e1'; e.target.style.boxShadow = 'none'; }}
-                                step="0.01"
-                                min="0"
-                            />
+                        <label style={{ margin: 0, color: '#475569', fontSize: '0.95rem' }}>Tax:</label>
+                        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                            <div style={{ position: 'relative', width: '90px' }}>
+                                <input 
+                                    type="number" 
+                                    style={{ width: '100%', boxSizing: 'border-box', padding: '0.5rem 1.5rem 0.5rem 0.6rem', border: '1px solid #cbd5e1', borderRadius: '6px', textAlign: 'right', fontSize: '0.95rem', outline: 'none', transition: 'all 0.2s', backgroundColor: '#ffffff' }}
+                                    placeholder="0"
+                                    value={taxPercent} 
+                                    onChange={(e) => handleTaxPercentChange(e.target.value)} 
+                                    onFocus={(e) => { e.target.style.borderColor = '#3b82f6'; }}
+                                    onBlur={(e) => { e.target.style.borderColor = '#cbd5e1'; }}
+                                    step="0.01"
+                                    min="0"
+                                />
+                                <span style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', color: '#64748b', fontWeight: 600, fontSize: '0.85rem' }}>%</span>
+                            </div>
+                            <div style={{ position: 'relative', width: '140px' }}>
+                                <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#64748b', fontWeight: 500 }}>₹</span>
+                                <input 
+                                    type="number" 
+                                    style={{ width: '100%', boxSizing: 'border-box', padding: '0.5rem 0.75rem 0.5rem 1.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', textAlign: 'right', fontSize: '0.95rem', outline: 'none', transition: 'all 0.2s', backgroundColor: '#ffffff' }}
+                                    value={taxAmount} 
+                                    onChange={(e) => handleTaxAmountChange(e.target.value)} 
+                                    onFocus={(e) => { e.target.style.borderColor = '#3b82f6'; }}
+                                    onBlur={(e) => { e.target.style.borderColor = '#cbd5e1'; }}
+                                    step="0.01"
+                                    min="0"
+                                />
+                            </div>
                         </div>
                     </div>
 
