@@ -11,15 +11,31 @@ const OrderGenerationModal = ({ isOpen, onClose, onSubmit, enquiryData }) => {
 
   useEffect(() => {
     if (enquiryData?.parts) {
-      setItems(enquiryData.parts.map(part => ({
-        enquiry_part_id: part.id,
-        item_name: part.part_name,
-        quantity: part.quantity,
-        unit_price: '0',
-        total_price: '0'
-      })));
+      setItems(enquiryData.parts.map(part => {
+        // Use subTotal (pre-GST) so that when order adds 18% tax it matches the Master Quote total
+        const quotedSubTotal = part.auto_quote_data?.subTotal || 0;
+        const quotedGrandTotal = part.auto_quote_data?.grandTotal || 0;
+        const qty = part.quantity || 1;
+        // unit_price should be pre-tax so adding tax in order gives correct grandTotal
+        const unitPrice = quotedSubTotal > 0 ? (quotedSubTotal / qty).toFixed(2) : '0';
+        const totalPrice = quotedSubTotal > 0 ? parseFloat(quotedSubTotal).toFixed(2) : '0';
+
+        return {
+          enquiry_part_id: part.id,
+          item_name: part.part_name,
+          quantity: qty,
+          unit_price: unitPrice,
+          total_price: totalPrice,
+          _from_quote: quotedSubTotal > 0,
+          _quote_status: part.auto_quote_status
+        };
+      }));
+
+      // Auto-set 18% GST if master quote exists
+      if (enquiryData.master_quote_data) {
+        setTaxPercent('18');
+      }
     } else if (enquiryData) {
-        // Fallback for single part if parts array missing
         setItems([{
             item_name: 'Order Item',
             quantity: enquiryData.quantity || 1,
@@ -147,7 +163,10 @@ const OrderGenerationModal = ({ isOpen, onClose, onSubmit, enquiryData }) => {
                     </thead>
                     <tbody style={{ backgroundColor: '#ffffff' }}>
                       {items.map((item, index) => (
-                        <tr key={index} style={{ borderBottom: index < items.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                        <tr key={index} style={{ 
+                          borderBottom: index < items.length - 1 ? '1px solid #f1f5f9' : 'none',
+                          background: item._from_quote ? '#f0fdf4' : 'white'
+                        }}>
                           <td style={{ padding: '0.75rem 1.25rem', fontSize: '0.95rem', color: '#334155' }}>
                             {!item.enquiry_part_id ? (
                                 <input 
@@ -159,7 +178,21 @@ const OrderGenerationModal = ({ isOpen, onClose, onSubmit, enquiryData }) => {
                                     required
                                 />
                             ) : (
-                                <span style={{ fontWeight: 600 }}>{item.item_name}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                  <span style={{ fontWeight: 600 }}>{item.item_name}</span>
+                                  {item._from_quote && (
+                                    <span style={{
+                                      fontSize: '0.65rem', fontWeight: 700,
+                                      background: item._quote_status === 'FINALIZED' ? '#dcfce7' : '#fef9c3',
+                                      color: item._quote_status === 'FINALIZED' ? '#15803d' : '#92400e',
+                                      border: `1px solid ${item._quote_status === 'FINALIZED' ? '#86efac' : '#fde68a'}`,
+                                      padding: '1px 6px', borderRadius: '4px',
+                                      textTransform: 'uppercase', letterSpacing: '0.04em'
+                                    }}>
+                                      ✦ {item._quote_status === 'FINALIZED' ? 'Quoted' : 'Draft Quote'}
+                                    </span>
+                                  )}
+                                </div>
                             )}
                           </td>
                           <td style={{ padding: '0.75rem 1.25rem', textAlign: 'center' }}>
@@ -181,12 +214,23 @@ const OrderGenerationModal = ({ isOpen, onClose, onSubmit, enquiryData }) => {
                               <span style={{ position: 'absolute', left: '0.65rem', color: '#64748b', fontSize: '0.85rem' }}>₹</span>
                               <input 
                                 type="number" 
-                                style={{ width: '100%', boxSizing: 'border-box', padding: '0.5rem 0.5rem 0.5rem 1.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.95rem', color: '#1e293b', outline: 'none', transition: 'all 0.2s', backgroundColor: '#f8fafc' }}
+                                style={{ 
+                                  width: '100%', boxSizing: 'border-box', 
+                                  padding: '0.5rem 0.5rem 0.5rem 1.5rem', 
+                                  border: item._from_quote ? '1px solid #6ee7b7' : '1px solid #cbd5e1', 
+                                  borderRadius: '6px', fontSize: '0.95rem', color: '#1e293b', 
+                                  outline: 'none', transition: 'all 0.2s', 
+                                  backgroundColor: item._from_quote ? '#f0fdf4' : '#f8fafc',
+                                  fontWeight: item._from_quote ? 700 : 400
+                                }}
                                 placeholder="0.00"
                                 value={item.unit_price} 
                                 onChange={(e) => handleItemChange(index, 'unit_price', e.target.value)} 
                                 onFocus={(e) => { e.target.style.borderColor = '#3b82f6'; e.target.style.backgroundColor = '#ffffff'; }}
-                                onBlur={(e) => { e.target.style.borderColor = '#cbd5e1'; e.target.style.backgroundColor = '#f8fafc'; }}
+                                onBlur={(e) => { 
+                                  e.target.style.borderColor = item._from_quote ? '#6ee7b7' : '#cbd5e1'; 
+                                  e.target.style.backgroundColor = item._from_quote ? '#f0fdf4' : '#f8fafc'; 
+                                }}
                                 required 
                                 step="0.01"
                                 min="0"

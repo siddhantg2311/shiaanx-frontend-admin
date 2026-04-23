@@ -94,6 +94,79 @@ const enquiryService = {
     } catch (error) {
       throw error.response ? error.response.data : error;
     }
+  },
+
+  updateEnquiry: async (id, data) => {
+    try {
+      const response = await api.put(`/admin/enquiries/${id}`, data);
+      return response.data || response;
+    } catch (error) {
+      throw error.response ? error.response.data : error;
+    }
+  },
+
+  addPart: async (enquiryId, data) => {
+    try {
+      const response = await api.post(`/admin/enquiries/${enquiryId}/parts`, data);
+      return response.data || response;
+    } catch (error) {
+      throw error.response ? error.response.data : error;
+    }
+  },
+
+  updatePart: async (enquiryId, partId, data) => {
+    try {
+      const response = await api.put(`/admin/enquiries/${enquiryId}/parts/${partId}`, data);
+      return response.data || response;
+    } catch (error) {
+      throw error.response ? error.response.data : error;
+    }
+  },
+
+  // ─── Auto Quote ─────────────────────────────────────────────────────────────
+  getAutoQuoteState: async (enquiryId, partId) => {
+    try {
+      const response = await api.get(`/admin/enquiries/${enquiryId}/parts/${partId}/auto-quote`);
+      return response.data || response;
+    } catch (error) {
+      throw error.response ? error.response.data : error;
+    }
+  },
+
+  generateAutoQuote: async (enquiryId, partId, options = {}) => {
+    try {
+      const response = await api.post(`/admin/enquiries/${enquiryId}/parts/${partId}/auto-quote/generate`, options);
+      return response.data || response;
+    } catch (error) {
+      throw error.response ? error.response.data : error;
+    }
+  },
+
+  saveAutoQuote: async (enquiryId, partId, state, finalize = false) => {
+    try {
+      const response = await api.put(`/admin/enquiries/${enquiryId}/parts/${partId}/auto-quote`, { state, finalize });
+      return response.data || response;
+    } catch (error) {
+      throw error.response ? error.response.data : error;
+    }
+  },
+
+  saveMasterQuote: async (enquiryId, master_quote_data, finalize = false) => {
+    try {
+      const response = await api.put(`/admin/enquiries/${enquiryId}/master-quote`, { master_quote_data, finalize });
+      return response.data || response;
+    } catch (error) {
+      throw error.response ? error.response.data : error;
+    }
+  },
+
+  getPipelineHealth: async () => {
+    try {
+      const response = await api.get('/admin/enquiries/auto-quote/pipeline-health');
+      return response.data || response;
+    } catch (error) {
+      return { online: false };
+    }
   }
 };
 

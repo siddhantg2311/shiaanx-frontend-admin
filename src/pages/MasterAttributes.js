@@ -18,7 +18,7 @@ function MasterAttributes() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [currentItem, setCurrentItem] = useState(null);
-  const [formData, setFormData] = useState({ name: '', description: '', is_active: true });
+  const [formData, setFormData] = useState({ name: '', description: '', is_active: true, rate: 0 });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
@@ -49,7 +49,7 @@ function MasterAttributes() {
   const handleOpenAddModal = () => {
     setIsEditMode(false);
     setCurrentItem(null);
-    setFormData({ name: '', description: '', is_active: true });
+    setFormData({ name: '', description: '', is_active: true, rate: 0 });
     setIsModalOpen(true);
   };
 
@@ -59,7 +59,8 @@ function MasterAttributes() {
     setFormData({
       name: item.name,
       description: item.description || '',
-      is_active: item.is_active
+      is_active: item.is_active,
+      rate: item.rate || 0
     });
     setIsModalOpen(true);
   };
@@ -158,6 +159,7 @@ function MasterAttributes() {
                 <thead>
                   <tr>
                     <th>Name</th>
+                    <th>Rate ({activeTab === TABS.TECHNOLOGY ? '₹/hr' : activeTab === TABS.MATERIAL ? '₹/kg' : '₹/unit'})</th>
                     <th>Description</th>
                     <th>Status</th>
                     <th>Actions</th>
@@ -167,6 +169,7 @@ function MasterAttributes() {
                   {items.map(item => (
                     <tr key={item.id}>
                       <td>{item.name}</td>
+                      <td className="rate-cell"><strong>₹ {parseFloat(item.rate || 0).toLocaleString()}</strong></td>
                       <td className="desc-cell">{item.description || '-'}</td>
                       <td>
                         <span className={`status-badge ${item.is_active ? 'active' : 'inactive'}`}>
@@ -209,6 +212,17 @@ function MasterAttributes() {
                   value={formData.name} 
                   onChange={e => setFormData({...formData, name: e.target.value})}
                   placeholder="e.g. CNC Machining"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Rate ({activeTab === TABS.TECHNOLOGY ? '₹ / hour' : activeTab === TABS.MATERIAL ? '₹ / kg' : '₹ / unit'})</label>
+                <input 
+                  type="number" 
+                  step="0.01"
+                  value={formData.rate} 
+                  onChange={e => setFormData({...formData, rate: parseFloat(e.target.value) || 0})}
+                  placeholder="0.00"
                   required
                 />
               </div>

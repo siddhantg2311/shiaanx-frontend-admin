@@ -1,11 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   FiPaperclip, FiUpload, FiCheckCircle, FiInfo, FiBox, 
   FiTruck, FiFileText, FiTool, FiCalendar, FiUser, FiPackage,
-  FiPlus, FiX
+  FiPlus, FiX, FiChevronDown, FiChevronRight, FiClock, FiFile, FiCheck
 } from 'react-icons/fi';
 import enquiryService from '../../services/enquiryService';
 import toast from 'react-hot-toast';
+import { MdAutoGraph, MdOutlineViewInAr, MdEdit, MdCheckCircle } from 'react-icons/md';
+import AutoQuoteModal from './AutoQuoteModal';
+import CADViewerModal from './CADViewerModal';
+import EditEnquiryModal from './EditEnquiryModal';
+import EditPartModal from './EditPartModal';
+import AddPartModal from './AddPartModal';
+import MasterQuoteModal from './MasterQuoteModal';
 
 const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
   const [quoteFile, setQuoteFile] = useState(null);
@@ -24,6 +31,26 @@ const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
   const [vendorRemarks, setVendorRemarks] = useState('');
   const [isUploadingVendor, setIsUploadingVendor] = useState(false);
   const [isVendorDragOver, setIsVendorDragOver] = useState(false);
+
+  // Auto Quote state
+  const [selectedAutoQuotePart, setSelectedAutoQuotePart] = useState(null);
+  const [selectedCADPart, setSelectedCADPart] = useState(null);
+  const [isEditEnquiryOpen, setIsEditEnquiryOpen] = useState(false);
+  const [isAddPartOpen, setIsAddPartOpen] = useState(false);
+  const [isMasterQuoteOpen, setIsMasterQuoteOpen] = useState(false);
+  const [selectedEditPart, setSelectedEditPart] = useState(null);
+  const [expandedParts, setExpandedParts] = useState([]);
+  const [localData, setLocalData] = useState(data);
+
+  useEffect(() => {
+    setLocalData(data);
+  }, [data]);
+
+  const toggleRow = (partId) => {
+    setExpandedParts(prev => 
+      prev.includes(partId) ? prev.filter(id => id !== partId) : [...prev, partId]
+    );
+  };
 
   const handleDragOver = (e) => { e.preventDefault(); setIsDragOver(true); };
   const handleDragLeave = () => setIsDragOver(false);
@@ -244,6 +271,70 @@ const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
         </div>
       )}
 
+      {/* Auto Quote Modal */}
+      {selectedAutoQuotePart && (
+        <AutoQuoteModal 
+          enquiryId={localData.id}
+          part={selectedAutoQuotePart}
+          onClose={() => setSelectedAutoQuotePart(null)}
+          onSave={(res) => {
+             setLocalData(prev => ({
+               ...prev,
+               parts: prev.parts.map(p => 
+                 p.id === selectedAutoQuotePart.id 
+                  ? { ...p, auto_quote_status: res.auto_quote_status, auto_quote_data: res.auto_quote_data } 
+                  : p
+               )
+             }));
+          }}
+        />
+      )}
+
+      {/* CAD Viewer Modal */}
+      <CADViewerModal 
+        isOpen={!!selectedCADPart}
+        part={selectedCADPart}
+        onClose={() => setSelectedCADPart(null)}
+      />
+
+      {/* Edit Enquiry Modal */}
+      <EditEnquiryModal 
+        isOpen={isEditEnquiryOpen}
+        onClose={() => setIsEditEnquiryOpen(false)}
+        enquiryData={localData}
+        onUpdate={(updated) => setLocalData(updated)}
+      />
+
+      {/* Edit Part Modal */}
+      <EditPartModal 
+        isOpen={!!selectedEditPart}
+        onClose={() => setSelectedEditPart(null)}
+        enquiryId={localData.id}
+        part={selectedEditPart}
+        onUpdate={(updated) => {
+          setLocalData(updated);
+          // If we were editing a part, find it in the updated data to keep the modal state fresh
+          const updatedPart = updated.parts?.find(p => p.id === selectedEditPart.id);
+          if (updatedPart) setSelectedEditPart(updatedPart);
+        }}
+      />
+
+      {/* Add Part Modal */}
+      <AddPartModal 
+        isOpen={isAddPartOpen}
+        onClose={() => setIsAddPartOpen(false)}
+        enquiryId={localData.id}
+        onAdded={(updated) => setLocalData(updated)}
+      />
+
+      {/* Master Quote Modal */}
+      <MasterQuoteModal 
+        isOpen={isMasterQuoteOpen}
+        onClose={() => setIsMasterQuoteOpen(false)}
+        enquiryData={localData}
+        onSave={(updated) => setLocalData(updated)}
+      />
+
       {/* DFM Upload Modal */}
       {isDfmModalOpen && (
         <div className="dfm-modal-overlay" onClick={() => setIsDfmModalOpen(false)}>
@@ -359,16 +450,25 @@ const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
       <nav className="breadcrumb-nav">
         <span className="breadcrumb-item" onClick={() => window.location.href = '/'}>All Items</span>
         <span className="breadcrumb-separator">/</span>
-        <span className="breadcrumb-item" style={{ fontWeight: 600, color: '#0f172a' }}>{data.enquiry_number}</span>
+        <span className="breadcrumb-item" style={{ fontWeight: 600, color: '#0f172a' }}>{localData.enquiry_number}</span>
       </nav>
 
       <header className="dashboard-header">
-        <h1 className="dashboard-title">Enquiry Details</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <h1 className="dashboard-title">Enquiry Details</h1>
+          <button 
+            onClick={() => setIsEditEnquiryOpen(true)}
+            style={{ background: '#f1f5f9', border: 'none', padding: '0.4rem', borderRadius: '4px', cursor: 'pointer', color: '#475569', display: 'flex', alignItems: 'center' }}
+            title="Edit Enquiry Information"
+          >
+            <MdEdit size={18} />
+          </button>
+        </div>
         <span 
           className="status-pill"
           style={{ backgroundColor: statusColors.bg, color: statusColors.color }}
         >
-          {formatStatus(data.status)}
+          {formatStatus(localData.status)}
         </span>
       </header>
 
@@ -377,31 +477,62 @@ const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
         <div className="dashboard-main-content">
           {/* General Info Card */}
           <div className="info-card">
-             <div className="parameters-grid">
+              <div className="parameters-grid">
                 <div className="param-item">
                   <span className="param-label">Customer</span>
-                  <span className="param-value">{data.customer?.name || 'N/A'}</span>
+                  <span className="param-value">{localData.customer?.name || 'N/A'}</span>
                 </div>
                 <div className="param-item">
                   <span className="param-label">Created Date</span>
-                  <span className="param-value">{formatDate(data.created_at || data.createdAt)}</span>
+                  <span className="param-value">{formatDate(localData.created_at || localData.createdAt)}</span>
                 </div>
                 <div className="param-item">
                   <span className="param-label">Shipping Address</span>
-                  <span className="param-value" style={{ fontSize: '0.85rem' }}>{data.shipping_address || 'India'}</span>
+                  <span className="param-value" style={{ fontSize: '0.85rem' }}>{localData.shipping_address || 'India'}</span>
                 </div>
                 <div className="param-item">
                   <span className="param-label">General Remarks</span>
-                  <span className="param-value" style={{ fontSize: '0.85rem' }}>{data.remarks || 'No specific notes.'}</span>
+                  <span className="param-value" style={{ fontSize: '0.85rem' }}>{localData.remarks || 'No specific notes.'}</span>
                 </div>
              </div>
           </div>
 
           {/* Parts Section - Tabular View */}
           <div className="info-card">
-            <h3 className="card-title">
-              <FiPackage /> Parts Specification
-            </h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 className="card-title" style={{ margin: 0, marginBottom: 0 }}>
+                <FiPackage style={{ marginRight: '8px' }} /> Parts Specification
+              </h3>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button 
+                  onClick={() => setIsAddPartOpen(true)}
+                  style={{ 
+                    display: 'flex', alignItems: 'center', gap: '6px', 
+                    padding: '6px 12px', background: '#e0e7ff', 
+                    color: '#3730a3', border: 'none', borderRadius: '6px', 
+                    fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' 
+                  }}
+                >
+                  <FiPlus /> Add Part
+                </button>
+                <button
+                  onClick={() => setIsMasterQuoteOpen(true)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    padding: '6px 14px',
+                    background: localData.master_quote_data ? '#ecfdf5' : 'linear-gradient(135deg, #0f766e, #14b8a6)',
+                    color: localData.master_quote_data ? '#065f46' : 'white',
+                    border: localData.master_quote_data ? '1px solid #6ee7b7' : 'none',
+                    borderRadius: '6px',
+                    fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
+                    boxShadow: localData.master_quote_data ? 'none' : '0 2px 8px rgba(20,184,166,0.35)'
+                  }}
+                >
+                  <MdAutoGraph size={16} />
+                  {localData.master_quote_data ? 'View Master Quote' : 'Master Quote'}
+                </button>
+              </div>
+            </div>
             <div className="table-responsive">
               <table className="parts-table">
                 <thead>
@@ -413,44 +544,140 @@ const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
                     <th>Qty</th>
                     <th>Surface Finish</th>
                     <th>Files</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {data.parts && data.parts.length > 0 ? (
-                    data.parts.map((part, index) => (
-                      <tr key={part.id || index}>
-                        <td className="col-index">{index + 1}</td>
-                        <td className="col-name"><strong>{part.part_name}</strong></td>
-                        <td>
-                          <span className="tech-badge">
-                            {part.technologies?.map(t => t.name).join(', ') || 'N/A'}
-                          </span>
-                        </td>
-                        <td>{part.materials?.map(m => m.name).join(', ') || 'N/A'}</td>
-                        <td className="col-qty">{part.quantity} Units</td>
-                        <td>As Manufactured</td>
-                        <td className="col-files">
-                          {part.documents && part.documents.length > 0 ? (
-                            <div className="part-file-links">
-                              {part.documents.map((doc, dIdx) => (
-                                <a 
-                                  key={dIdx}
-                                  href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/${doc.file_path}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="file-mini-link"
-                                  title={doc.file_name}
+                  {localData.parts && localData.parts.length > 0 ? (
+                    localData.parts.map((part, index) => {
+                      const isExpanded = expandedParts.includes(part.id);
+                      const sortedDocs = [...(part.documents || [])].sort((a, b) => 
+                        new Date(b.created_at || b.createdAt) - new Date(a.created_at || a.createdAt)
+                      );
+
+                      return (
+                        <React.Fragment key={part.id || index}>
+                          <tr style={{ background: isExpanded ? '#f8fafc' : 'white', transition: 'all 0.2s' }}>
+                            <td className="col-index">{index + 1}</td>
+                            <td className="col-name" style={{ cursor: 'pointer' }} onClick={() => toggleRow(part.id)}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ color: '#64748b', display: 'flex', alignItems: 'center' }}>
+                                  {isExpanded ? <FiChevronDown size={18} /> : <FiChevronRight size={18} />}
+                                </span>
+                                <strong>{part.part_name}</strong>
+                              </div>
+                              {part.auto_quote_status === 'FINALIZED' && (
+                                <div style={{ marginLeft: 26, marginTop: 4, display: 'inline-flex', alignItems: 'center', gap: 4, background: '#ecfdf5', color: '#10b981', padding: '2px 8px', borderRadius: 4, fontSize: '0.7rem', fontWeight: 700, border: '1px solid #a7f3d0' }}>
+                                  <MdCheckCircle size={12} /> FINALIZED: ₹{part.auto_quote_data?.grandTotal?.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                                </div>
+                              )}
+                              {part.auto_quote_status === 'DRAFT' && (
+                                <div style={{ marginLeft: 26, marginTop: 4, display: 'inline-flex', alignItems: 'center', gap: 4, background: '#fffbeb', color: '#d97706', padding: '2px 8px', borderRadius: 4, fontSize: '0.7rem', fontWeight: 700, border: '1px solid #fde68a' }}>
+                                  <MdEdit size={12} /> DRAFT: ₹{part.auto_quote_data?.grandTotal?.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                                </div>
+                              )}
+                            </td>
+                            <td>
+                              <span className="tech-badge">
+                                {part.technologies?.map(t => t.name).join(', ') || 'N/A'}
+                              </span>
+                            </td>
+                            <td>{part.materials?.map(m => m.name).join(', ') || 'N/A'}</td>
+                            <td className="col-qty">{part.quantity} Units</td>
+                            <td>{part.finishes?.map(f => f.name).join(', ') || 'As Manufactured'}</td>
+                            <td className="col-files">
+                              <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>{part.documents?.length || 0} Files</span>
+                            </td>
+                            <td className="col-actions">
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button 
+                                  className="btn-auto-quote"
+                                  onClick={() => setSelectedAutoQuotePart(part)}
+                                  title={part.auto_quote_status ? 'Edit Quote' : 'Generate Insta Quote'}
+                                  style={{
+                                    border: part.auto_quote_status === 'FINALIZED' ? '1px solid #10b981' : undefined,
+                                    background: part.auto_quote_status === 'FINALIZED' ? '#ecfdf5' : undefined,
+                                    color: part.auto_quote_status === 'FINALIZED' ? '#10b981' : undefined,
+                                  }}
                                 >
-                                  <FiPaperclip />
-                                </a>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="no-files">-</span>
+                                  <MdAutoGraph /> {part.auto_quote_status ? 'Edit Quote' : 'Auto Quote'}
+                                </button>
+                                <button 
+                                  className="btn-secondary-action"
+                                  style={{ padding: '0.4rem 0.8rem', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
+                                  onClick={() => setSelectedCADPart(part)}
+                                  title="View 3D CAD"
+                                >
+                                  <MdOutlineViewInAr /> View 3D
+                                </button>
+                                <button 
+                                  className="btn-secondary-action"
+                                  style={{ padding: '0.4rem', display: 'flex', alignItems: 'center', backgroundColor: '#fdf2f2', color: '#b91c1c' }}
+                                  onClick={() => setSelectedEditPart(part)}
+                                  title="Edit Part / Revisions"
+                                >
+                                  <MdEdit size={16} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+
+                          {/* EXPANDED ROW CONTENT */}
+                          {isExpanded && (
+                            <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                              <td colSpan="8" style={{ padding: '0' }}>
+                                <div style={{ padding: '24px', display: 'flex', gap: '32px', borderTop: '1px dashed #cbd5e1' }}>
+                                  
+                                  {/* Technical Remarks */}
+                                  <div style={{ flex: 1 }}>
+                                    <h5 style={{ margin: '0 0 12px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem' }}>
+                                      <FiInfo /> Technical Remarks
+                                    </h5>
+                                    <div style={{ background: 'white', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0', minHeight: '80px' }}>
+                                      <p style={{ margin: 0, fontSize: '0.85rem', color: part.remarks ? '#334155' : '#94a3b8', lineHeight: '1.5' }}>
+                                        {part.remarks || 'No technical remarks provided for this part.'}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  {/* Revisions / Files */}
+                                  <div style={{ flex: 1 }}>
+                                    <h5 style={{ margin: '0 0 12px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem' }}>
+                                      <FiClock /> File Revisions
+                                    </h5>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
+                                      {sortedDocs.length > 0 ? sortedDocs.map((doc, idx) => (
+                                        <div key={doc.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', backgroundColor: 'white', border: `1px solid ${idx === 0 ? '#10b981' : '#e2e8f0'}`, borderRadius: '8px', opacity: idx === 0 ? 1 : 0.7 }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', overflow: 'hidden' }}>
+                                            <div style={{ color: idx === 0 ? '#10b981' : '#64748b', flexShrink: 0 }}>
+                                              {idx === 0 ? <FiCheck /> : <FiFile />}
+                                            </div>
+                                            <div style={{ minWidth: 0 }}>
+                                              <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                {doc.file_name}
+                                                {idx === 0 && <span style={{ marginLeft: '8px', padding: '2px 6px', background: '#ecfdf5', color: '#10b981', border: '1px solid #10b981', fontSize: '0.6rem', borderRadius: '4px', fontWeight: 700 }}>LATEST</span>}
+                                              </p>
+                                              <p style={{ margin: 0, fontSize: '0.7rem', color: '#94a3b8' }}>
+                                                {new Date(doc.created_at || doc.createdAt).toLocaleString()}
+                                              </p>
+                                            </div>
+                                          </div>
+                                          <a href={`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/${doc.file_path}`} target="_blank" rel="noreferrer" style={{ fontSize: '0.75rem', fontWeight: 600, color: '#2563eb', textDecoration: 'none', background: '#eff6ff', padding: '4px 8px', borderRadius: '4px' }}>DOWNLOAD</a>
+                                        </div>
+                                      )) : (
+                                        <div style={{ background: 'white', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+                                          No files uploaded for this part. Click the "Edit Part" pencil icon to upload revisions.
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
                           )}
-                        </td>
-                      </tr>
-                    ))
+                        </React.Fragment>
+                      );
+                    })
                   ) : (
                     <tr>
                       <td colSpan="7" className="empty-table">No parts found for this enquiry</td>
@@ -491,6 +718,84 @@ const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
                     </div>
                 )}
             </div>
+
+            {/* Pricing Summary Card — shown when master quote exists */}
+            {localData.master_quote_data && (() => {
+                const mq = localData.master_quote_data;
+                return (
+                    <div className="info-card" style={{ border: '1px solid #a7f3d0', background: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)', padding: '0', overflow: 'hidden' }}>
+                        {/* Card Header */}
+                        <div style={{ background: 'linear-gradient(135deg, #0f766e, #14b8a6)', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'white' }}>
+                                <MdAutoGraph size={18} />
+                                <span style={{ fontWeight: 700, fontSize: '0.9rem', letterSpacing: '0.02em' }}>MASTER QUOTE</span>
+                            </div>
+                            <span style={{ 
+                                background: 'rgba(255,255,255,0.2)', 
+                                color: 'white', 
+                                padding: '2px 8px', 
+                                borderRadius: '20px', 
+                                fontSize: '0.7rem', 
+                                fontWeight: 700 
+                            }}>
+                                {localData.status === 'QUOTED' ? 'FINALIZED' : 'DRAFT'}
+                            </span>
+                        </div>
+
+                        {/* Grand Total Hero */}
+                        <div style={{ padding: '18px 18px 12px', borderBottom: '1px solid #d1fae5', textAlign: 'center' }}>
+                            <p style={{ margin: 0, fontSize: '0.72rem', color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Grand Total (Inc. 18% GST)</p>
+                            <p style={{ margin: '4px 0 0', fontSize: '1.6rem', fontWeight: 900, color: '#0f766e', lineHeight: 1 }}>
+                                ₹{(mq.grandTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                        </div>
+
+                        {/* Breakdown */}
+                        <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem' }}>
+                                <span style={{ color: '#6b7280' }}>Parts Subtotal</span>
+                                <span style={{ fontWeight: 600, color: '#374151' }}>₹{(mq.partsSubTotal || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+                            </div>
+                            {mq.globalShipping > 0 && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem' }}>
+                                    <span style={{ color: '#6b7280' }}>Shipping</span>
+                                    <span style={{ fontWeight: 600, color: '#374151' }}>+ ₹{(mq.globalShipping || 0).toLocaleString()}</span>
+                                </div>
+                            )}
+                            {mq.globalDiscount > 0 && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem' }}>
+                                    <span style={{ color: '#6b7280' }}>Discount</span>
+                                    <span style={{ fontWeight: 700, color: '#0f766e' }}>- ₹{(mq.globalDiscount || 0).toLocaleString()}</span>
+                                </div>
+                            )}
+                            <div style={{ height: '1px', background: '#d1fae5' }}></div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                                <span style={{ color: '#6b7280', fontWeight: 600 }}>Net Subtotal</span>
+                                <span style={{ fontWeight: 700, color: '#111827' }}>₹{(mq.subTotal || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem' }}>
+                                <span style={{ color: '#9ca3af' }}>GST (18%)</span>
+                                <span style={{ color: '#9ca3af' }}>₹{(mq.gstAmount || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+                            </div>
+                            {mq.paymentTerms && (
+                                <div style={{ marginTop: '4px', padding: '8px 10px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '6px', fontSize: '0.78rem', color: '#065f46', fontWeight: 600 }}>
+                                    💳 {mq.paymentTerms}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Edit button */}
+                        <div style={{ padding: '0 18px 16px' }}>
+                            <button 
+                                onClick={() => setIsMasterQuoteOpen(true)}
+                                style={{ width: '100%', background: 'white', border: '1px solid #6ee7b7', color: '#0f766e', borderRadius: '6px', padding: '8px', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}
+                            >
+                                Edit Master Quote
+                            </button>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* Quotation Management Card */}
             <div className="info-card quote-upload-card">
@@ -544,6 +849,40 @@ const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
                     >
                         {isUploadingQuote ? 'Uploading...' : 'Upload Quotation'}
                     </button>
+                    
+                    <div style={{ margin: '16px 0', borderTop: '1px solid #e2e8f0' }}></div>
+                    
+                    {localData.master_quote_data ? (
+                        <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '8px', padding: '12px', textAlign: 'center' }}>
+                            <p style={{ margin: '0 0 8px 0', fontSize: '0.85rem', color: '#065f46', fontWeight: 600 }}>Master Quote Generated</p>
+                            <button 
+                                onClick={() => setIsMasterQuoteOpen(true)}
+                                style={{ width: '100%', background: '#10b981', color: 'white', border: 'none', padding: '8px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}
+                            >
+                                View / Edit Master Quote
+                            </button>
+                        </div>
+                    ) : (
+                        <button 
+                            onClick={() => setIsMasterQuoteOpen(true)}
+                            style={{ 
+                                width: '100%', 
+                                background: '#3b82f6', 
+                                color: 'white', 
+                                border: 'none', 
+                                padding: '10px', 
+                                borderRadius: '8px', 
+                                fontWeight: 700, 
+                                cursor: 'pointer',
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                gap: '8px'
+                            }}
+                        >
+                            <MdAutoGraph size={18} /> Generate Master Quote
+                        </button>
+                    )}
                 </div>
             </div>
 
