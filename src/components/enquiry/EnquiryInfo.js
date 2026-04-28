@@ -15,25 +15,28 @@ import AddPartModal from './AddPartModal';
 import MasterQuoteModal from './MasterQuoteModal';
 
 // Builds a clean absolute URL for any stored file_path.
-// file_path from DB looks like: "../uploads/enquiries/.../file.docx"
-// We strip the leading "../" and prepend just the server origin (no /api).
+// handles both absolute (http://...) and relative (/api/api/v1) API URLs.
 const getFileUrl = (filePath) => {
-  console.log("File Path : ", filePath);
-  
   if (!filePath) return '#';
   if (filePath.startsWith('http')) return filePath;
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
-  console.log("API Url : ", apiUrl);
   
-  try {
-    const origin = new URL(apiUrl).origin; // e.g. http://13.233.172.143
-    const cleanPath = filePath.replace(/^(\.\.\/)+/, '').replace(/^\.\//,'');
-    console.log("Path : ", `${origin}/${cleanPath}`);
-    
-    return `${origin}/${cleanPath}`;
-  } catch {
-    return `${apiUrl}/${filePath}`;
+  // Strip ../ or ./ from the start of the path
+  const cleanPath = filePath.replace(/^(\.\.\/)+/, '').replace(/^\.\//, '');
+  
+  const apiUrl = process.env.REACT_APP_API_URL || '';
+  
+  if (apiUrl.startsWith('http')) {
+    try {
+      const origin = new URL(apiUrl).origin;
+      return `${origin}/${cleanPath}`;
+    } catch (e) {
+      return `${apiUrl}/${filePath}`;
+    }
   }
+  
+  // If API URL is relative (like /api/api/v1), we use the domain root + /api/
+  // This ensures we get http://domain/api/uploads/... instead of /api/api/...
+  return `/api/${cleanPath}`;
 };
 
 const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
