@@ -23,6 +23,8 @@ const getFileUrl = (filePath) => {
   if (!filePath) return '#';
   if (filePath.startsWith('http')) return filePath;
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+  console.log("API Url : ", apiUrl);
+  
   try {
     const origin = new URL(apiUrl).origin; // e.g. http://13.233.172.143
     const cleanPath = filePath.replace(/^(\.\.\/)+/, '').replace(/^\.\//,'');
