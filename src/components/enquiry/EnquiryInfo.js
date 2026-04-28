@@ -14,6 +14,22 @@ import EditPartModal from './EditPartModal';
 import AddPartModal from './AddPartModal';
 import MasterQuoteModal from './MasterQuoteModal';
 
+// Builds a clean absolute URL for any stored file_path.
+// file_path from DB looks like: "../uploads/enquiries/.../file.docx"
+// We strip the leading "../" and prepend just the server origin (no /api).
+const getFileUrl = (filePath) => {
+  if (!filePath) return '#';
+  if (filePath.startsWith('http')) return filePath;
+  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+  try {
+    const origin = new URL(apiUrl).origin; // e.g. http://13.233.172.143
+    const cleanPath = filePath.replace(/^(\.\.\/)+/, '').replace(/^\.\//,'');
+    return `${origin}/${cleanPath}`;
+  } catch {
+    return `${apiUrl}/${filePath}`;
+  }
+};
+
 const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
   const [quoteFile, setQuoteFile] = useState(null);
   const [isUploadingQuote, setIsUploadingQuote] = useState(false);
@@ -662,7 +678,7 @@ const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
                                               </p>
                                             </div>
                                           </div>
-                                          <a href={`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/${doc.file_path}`} target="_blank" rel="noreferrer" style={{ fontSize: '0.75rem', fontWeight: 600, color: '#2563eb', textDecoration: 'none', background: '#eff6ff', padding: '4px 8px', borderRadius: '4px' }}>DOWNLOAD</a>
+                                          <a href={getFileUrl(doc.file_path)} target="_blank" rel="noreferrer" style={{ fontSize: '0.75rem', fontWeight: 600, color: '#2563eb', textDecoration: 'none', background: '#eff6ff', padding: '4px 8px', borderRadius: '4px' }}>DOWNLOAD</a>
                                         </div>
                                       )) : (
                                         <div style={{ background: 'white', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
@@ -806,7 +822,7 @@ const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
                             {quotes.map((q, i) => (
                                 <div key={i} className="uploaded-file-item">
                                     <span className="file-name">{q.file_name}</span>
-                                    <a href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/${q.file_path}`} target="_blank" rel="noreferrer" className="view-link">VIEW</a>
+                                    <a href={getFileUrl(q.file_path)} target="_blank" rel="noreferrer" className="view-link">VIEW</a>
                                 </div>
                             ))}
                         </div>
@@ -906,14 +922,14 @@ const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
                                 <div className="dfm-entry-header">
                                     <span className="dfm-entry-label">Analysis #{i + 1}</span>
                                     <a 
-                                        href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/${d.file_path}`} 
+                                        href={getFileUrl(d.file_path)} 
                                         target="_blank" 
                                         rel="noreferrer" 
                                         className="view-link dfm"
                                     >
                                         {d.file_name?.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
                                             <img 
-                                                src={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/${d.file_path}`} 
+                                                src={getFileUrl(d.file_path)} 
                                                 alt={d.file_name}
                                                 style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #e2e8f0' }}
                                             />
@@ -955,7 +971,7 @@ const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
                                 <div className="dfm-entry-header">
                                     <span className="dfm-entry-label" style={{ color: '#5b21b6' }}>Doc #{i + 1} ({d.file_name})</span>
                                     <a 
-                                        href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/${d.file_path}`} 
+                                        href={getFileUrl(d.file_path)} 
                                         target="_blank" 
                                         rel="noreferrer" 
                                         className="view-link"
@@ -963,7 +979,7 @@ const EnquiryInfo = ({ data, onApprovePO, onRejectPO, onUpdateStatus }) => {
                                     >
                                         {d.file_name?.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
                                             <img 
-                                                src={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/${d.file_path}`} 
+                                                src={getFileUrl(d.file_path)} 
                                                 alt={d.file_name}
                                                 style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #e2e8f0' }}
                                             />

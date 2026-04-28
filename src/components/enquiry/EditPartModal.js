@@ -206,8 +206,14 @@ const EditPartModal = ({ isOpen, onClose, enquiryId, part, onUpdate }) => {
   const getFullUrl = (filePath) => {
     if (!filePath) return '#';
     if (filePath.startsWith('http')) return filePath;
-    const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
-    return `${baseUrl}/${filePath}`;
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+    try {
+      const origin = new URL(apiUrl).origin; // e.g. http://13.233.172.143
+      const cleanPath = filePath.replace(/^(\.\.\/)+/, '').replace(/^\.\//,'');
+      return `${origin}/${cleanPath}`;
+    } catch {
+      return `${apiUrl}/${filePath}`;
+    }
   };
 
   return (

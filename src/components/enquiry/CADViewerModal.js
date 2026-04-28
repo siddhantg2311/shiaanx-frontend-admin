@@ -3,6 +3,19 @@ import { MdClose } from 'react-icons/md';
 import { FiBox } from 'react-icons/fi';
 import CadViewer from './CadViewer';
 
+const getFileUrl = (filePath) => {
+  if (!filePath) return '#';
+  if (filePath.startsWith('http')) return filePath;
+  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+  try {
+    const origin = new URL(apiUrl).origin;
+    const cleanPath = filePath.replace(/^(\.\.\/)+/, '').replace(/^\.\//,'');
+    return `${origin}/${cleanPath}`;
+  } catch {
+    return `${apiUrl}/${filePath}`;
+  }
+};
+
 const CADViewerModal = ({ isOpen, onClose, part }) => {
   if (!isOpen || !part) return null;
 
@@ -30,7 +43,7 @@ const CADViewerModal = ({ isOpen, onClose, part }) => {
         <div className="aq-full-body" style={{ flex: 1, padding: 0, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
           {cadFile ? (
             <CadViewer 
-              fileUrl={cadFile.file_path.startsWith('http') ? cadFile.file_path : `${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/${cadFile.file_path}`} 
+              fileUrl={getFileUrl(cadFile.file_path)} 
               fileName={cadFile.file_name} 
             />
           ) : (
