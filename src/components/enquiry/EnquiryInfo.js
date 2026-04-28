@@ -18,6 +18,8 @@ import MasterQuoteModal from './MasterQuoteModal';
 // file_path from DB looks like: "../uploads/enquiries/.../file.docx"
 // We strip the leading "../" and prepend just the server origin (no /api).
 const getFileUrl = (filePath) => {
+  console.log("File Path : ", filePath);
+  
   if (!filePath) return '#';
   if (filePath.startsWith('http')) return filePath;
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
