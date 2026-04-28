@@ -24,6 +24,8 @@ const getFileUrl = (filePath) => {
   try {
     const origin = new URL(apiUrl).origin; // e.g. http://13.233.172.143
     const cleanPath = filePath.replace(/^(\.\.\/)+/, '').replace(/^\.\//,'');
+    console.log("Path : ", `${origin}/${cleanPath}`);
+    
     return `${origin}/${cleanPath}`;
   } catch {
     return `${apiUrl}/${filePath}`;
