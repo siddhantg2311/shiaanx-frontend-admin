@@ -326,13 +326,14 @@ const EditPartModal = ({ isOpen, onClose, enquiryId, part, onUpdate }) => {
                   type="file" 
                   hidden 
                   ref={fileInputRef} 
+                  accept=".step,.stp,.sldprt,.stl,.sat,.3dxml,.prt,.itp,.catpart,.x_t,.x_b,.dws,.dwf,.dwg,.dxf,.pdf,.doc,.docx,.zip,.rar,.7z,.jpg,.jpeg,.png,.gif,.webp"
                   onChange={e => setNewFile(e.target.files[0])}
                 />
                 {!newFile ? (
                   <>
                     <FiUpload size={32} style={{ color: 'var(--aq-muted)', marginBottom: '10px', opacity: 0.5 }} />
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--aq-muted)', fontWeight: 600 }}>Click to select new CAD file</p>
-                    <p style={{ margin: '4px 0 0', fontSize: '0.7rem', color: 'var(--aq-muted)', opacity: 0.7 }}>.STEP, .IGS, .STP formats</p>
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--aq-muted)', fontWeight: 600 }}>Click to select new file</p>
+                    <p style={{ margin: '4px 0 0', fontSize: '0.7rem', color: 'var(--aq-muted)', opacity: 0.7 }}>CAD, PDF, or DOC formats</p>
                   </>
                 ) : (
                   <div>

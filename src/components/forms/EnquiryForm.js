@@ -317,6 +317,7 @@ const EnquiryForm = ({
                     id={`file-upload-${part.id}`}
                     className="file-input"
                     multiple
+                    accept=".step,.stp,.sldprt,.stl,.sat,.3dxml,.prt,.itp,.catpart,.x_t,.x_b,.dws,.dwf,.dwg,.dxf,.pdf,.doc,.docx,.zip,.rar,.7z,.jpg,.jpeg,.png,.gif,.webp"
                     onChange={(e) => handlePartFileChange(part.id, e)}
                   />
                 </div>
