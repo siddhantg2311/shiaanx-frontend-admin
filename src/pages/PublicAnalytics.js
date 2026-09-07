@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { FiBarChart, FiRefreshCw, FiList, FiFilter, FiChevronDown, FiDatabase, FiActivity, FiCpu, FiPlay } from 'react-icons/fi';
-import telemetryService from '../services/telemetryService';
+import telemetryService, { TELEMETRY_MACHINES as MACHINES, DEFAULT_TELEMETRY_MACHINE_ID as DEFAULT_MACHINE_ID, telemetryMachineParams } from '../services/telemetryService';
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, Legend, BarChart, Bar, RadialBarChart, RadialBar } from 'recharts';
 import './TelemetryAnalyticsPublic.css';
 
@@ -57,8 +57,12 @@ function PublicAnalytics() {
     startDate: '',
     endDate: '',
     programName: '',
-    range: '-7d'
+    range: '-7d',
+    machineId: DEFAULT_MACHINE_ID
   });
+
+  // { factoryId, machineId } for the currently-selected machine — spread into every telemetry call.
+  const machineParams = () => telemetryMachineParams(filters.machineId);
   const [limit, setLimit] = useState(100);
   const [programs, setPrograms] = useState([]);
   const [loadingPrograms, setLoadingPrograms] = useState(false);
@@ -80,7 +84,7 @@ function PublicAnalytics() {
     if (!progName) return;
     try {
       setLoadingToolMetrics(true);
-      const params = { programName: progName };
+      const params = { ...machineParams(), programName: progName };
       if (runNum) params.runNumber = runNum;
       if (filters.startDate || filters.endDate) {
         if (filters.startDate) params.startDate = new Date(filters.startDate).toISOString();
@@ -104,7 +108,7 @@ function PublicAnalytics() {
   const fetchSummary = async () => {
     try {
       setLoading(true);
-      const params = {};
+      const params = { ...machineParams() };
       if (filters.startDate || filters.endDate) {
         if (filters.startDate) params.startDate = new Date(filters.startDate).toISOString();
         if (filters.endDate) params.endDate = new Date(filters.endDate).toISOString();
@@ -124,7 +128,7 @@ function PublicAnalytics() {
   const fetchMachineMatrix = async () => {
     try {
       setLoadingMatrix(true);
-      const params = {};
+      const params = { ...machineParams() };
       if (filters.startDate || filters.endDate) {
         if (filters.startDate) params.startDate = new Date(filters.startDate).toISOString();
         if (filters.endDate) params.endDate = new Date(filters.endDate).toISOString();
@@ -150,7 +154,7 @@ function PublicAnalytics() {
   const fetchPrograms = async () => {
     try {
       setLoadingPrograms(true);
-      const response = await telemetryService.getPrograms();
+      const response = await telemetryService.getPrograms(machineParams());
       setPrograms(response.data || []);
     } catch (err) {
       console.error('Failed to fetch programs:', err);
@@ -164,7 +168,7 @@ function PublicAnalytics() {
     if (!progName) return;
     try {
       setLoadingProgramMetrics(true);
-      const params = { programName: progName };
+      const params = { ...machineParams(), programName: progName };
       if (filters.startDate || filters.endDate) {
         if (filters.startDate) params.startDate = new Date(filters.startDate).toISOString();
         if (filters.endDate) params.endDate = new Date(filters.endDate).toISOString();
@@ -196,16 +200,17 @@ function PublicAnalytics() {
   };
 
   const resetFilters = () => {
-    const defaultFilters = { startDate: '', endDate: '', programName: '', range: '-7d' };
+    // Reset date/program filters but keep the selected machine.
+    const defaultFilters = { startDate: '', endDate: '', programName: '', range: '-7d', machineId: filters.machineId };
     setFilters(defaultFilters);
     setLimit(100);
     // Only refresh data for the active tab
     if (selectedTab === 'summary') {
-      const params = { range: '-30d' };
+      const params = { ...machineParams(), range: '-30d' };
       telemetryService.getAnalyticsSummary(params).then(res => setSummary(res.data || {}));
       telemetryService.getMachineMatrix(params).then(res => setMachineMatrix(res.data || []));
     } else if (selectedTab === 'table') {
-      telemetryService.getRawTelemetry({ limit: 100, range: '-30d' }).then(response => {
+      telemetryService.getRawTelemetry({ ...machineParams(), limit: 100, range: '-30d' }).then(response => {
         setRawData(response.data || []);
         setPagination(response.pagination || { nextCursor: null, hasNextPage: false });
       });
@@ -228,7 +233,7 @@ function PublicAnalytics() {
   // Fetch spindle speed trend (last 24h by default)
   const fetchTrend = async () => {
     try {
-      const res = await telemetryService.getSpindleTrend({ range: '-24h' });
+      const res = await telemetryService.getSpindleTrend({ ...machineParams(), range: '-24h' });
       // Convert timestamps to Date objects for recharts
       const formatted = (res.data || []).map(item => ({
         time: new Date(item.timestamp).toLocaleString('en-GB'),
@@ -245,7 +250,7 @@ function PublicAnalytics() {
   // Fetch raw telemetry data for the table view
   const fetchTelemetry = async (cursor = null) => {
     try {
-      const params = { limit };
+      const params = { ...machineParams(), limit };
       if (cursor) params.cursor = cursor;
       // Apply filters
       if (filters.startDate || filters.endDate) {
@@ -297,6 +302,29 @@ function PublicAnalytics() {
       fetchTelemetry();
     }
   }, [limit]);
+
+  // Switching machine invalidates every cache — reset and re-fetch the active tab.
+  const machineFirstRender = React.useRef(true);
+  useEffect(() => {
+    if (machineFirstRender.current) { machineFirstRender.current = false; return; }
+    initializedTabs.current = new Set();
+    setPrograms([]);
+    setSelectedProgram('');
+    setProgramMetrics(null);
+    setToolMetricsData(null);
+    if (selectedTab === 'summary') {
+      initializedTabs.current.add('summary');
+      fetchSummary();
+      fetchMachineMatrix();
+    } else if (selectedTab === 'table') {
+      initializedTabs.current.add('table');
+      fetchTelemetry();
+    } else if (selectedTab === 'programme' || selectedTab === 'tool') {
+      initializedTabs.current.add('programs');
+      fetchPrograms();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.machineId]);
 
   /* ─── helper: format seconds to human readable ─── */
   const formatDuration = (seconds) => {
@@ -355,6 +383,15 @@ function PublicAnalytics() {
           <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#4a5568' }}>Filters</span>
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'flex-end' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#718096' }}>Machine</label>
+            <div style={{ position: 'relative' }}>
+              <select name="machineId" value={filters.machineId} onChange={handleFilterChange} style={{ padding: '0.625rem 2.5rem 0.625rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0', outline: 'none', fontSize: '0.875rem', appearance: 'none', backgroundColor: 'white', minWidth: '170px' }}>
+                {MACHINES.map(m => (<option key={m.id} value={m.id}>{m.label}</option>))}
+              </select>
+              <FiChevronDown style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#a0aec0' }} />
+            </div>
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#718096' }}>Date Range</label>
             <div style={{ position: 'relative' }}>

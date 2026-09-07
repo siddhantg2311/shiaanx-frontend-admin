@@ -1,5 +1,20 @@
 import api from './api';
 
+/**
+ * Machines exposed on the telemetry pages. Each telemetry call is scoped to one
+ * machine via { factoryId, machineId } query params (backend: buildTagFilter).
+ * First entry is the default.
+ */
+export const TELEMETRY_MACHINES = [
+  { id: 'jyotiVMC', factoryId: 'ts', label: 'TS — jyotiVMC' },
+  { id: 'STM', factoryId: 'krishna', label: 'Krishna — STM' },
+];
+export const DEFAULT_TELEMETRY_MACHINE_ID = TELEMETRY_MACHINES[0].id;
+export const telemetryMachineParams = (machineId) => {
+  const m = TELEMETRY_MACHINES.find(x => x.id === machineId) || TELEMETRY_MACHINES[0];
+  return { factoryId: m.factoryId, machineId: m.id };
+};
+
 const telemetryService = {
   getRawTelemetry: async (params = {}) => api.get('/public/telemetry/raw', { params }),
   getExportUrl: (params = {}) => {
@@ -12,7 +27,7 @@ const telemetryService = {
   getMachineMatrix: async (params = {}) => api.get('/public/telemetry/analytics/machine-matrix', { params }),
   getProgramMetrics: async (params = {}) => api.get('/public/telemetry/analytics/program-metrics', { params }),
   getToolMetrics: async (params = {}) => api.get('/public/telemetry/analytics/tool-metrics', { params }),
-  getPrograms: async () => api.get('/public/telemetry/programs'),
+  getPrograms: async (params = {}) => api.get('/public/telemetry/programs', { params }),
   
   // Test Telemetry & Mappings
   getRawTestTelemetry: async (params = {}) => api.get('/admin/telemetry/test/raw', { params }),

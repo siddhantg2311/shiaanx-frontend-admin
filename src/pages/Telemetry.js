@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { FiActivity, FiRefreshCw, FiClock, FiDatabase, FiFilter, FiCalendar, FiCode, FiChevronDown, FiBarChart2, FiExternalLink } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-import telemetryService from '../services/telemetryService';
+import telemetryService, { TELEMETRY_MACHINES, DEFAULT_TELEMETRY_MACHINE_ID, telemetryMachineParams } from '../services/telemetryService';
 import toast from 'react-hot-toast';
 
 function Telemetry() {
@@ -20,8 +20,11 @@ function Telemetry() {
     startDate: '',
     endDate: '',
     programName: '',
-    range: '-2d'
+    range: '-2d',
+    machineId: DEFAULT_TELEMETRY_MACHINE_ID
   });
+
+  const machineParams = () => telemetryMachineParams(filters.machineId);
 
   const [telemetrySource, setTelemetrySource] = useState('influx'); // 'influx' or 'postgres'
   const [isMappingModalOpen, setIsMappingModalOpen] = useState(false);
@@ -41,8 +44,8 @@ function Telemetry() {
         setLoading(true);
       }
 
-      const params = { limit };
-      
+      const params = { ...machineParams(), limit };
+
       // Only send range if no specific dates are selected
       if (filters.startDate || filters.endDate) {
         if (filters.startDate) params.startDate = new Date(filters.startDate).toISOString();
@@ -104,7 +107,7 @@ function Telemetry() {
   const fetchPrograms = async () => {
     try {
       setLoadingPrograms(true);
-      const response = await telemetryService.getPrograms();
+      const response = await telemetryService.getPrograms(machineParams());
       setPrograms(response.data || []);
     } catch (err) {
       console.error('Failed to fetch programs:', err);
@@ -185,7 +188,7 @@ function Telemetry() {
     fetchTelemetry();
     fetchPrograms();
     fetchMappings();
-  }, [limit, telemetrySource]); // Fetch on limit or source change
+  }, [limit, telemetrySource, filters.machineId]); // Fetch on limit, source or machine change
 
   const columns = React.useMemo(() => {
     if (!data || data.length === 0) return [];
@@ -237,12 +240,12 @@ function Telemetry() {
   };
 
   const resetFilters = () => {
-    setFilters({ startDate: '', endDate: '', programName: '', range: '-2d' });
+    setFilters({ startDate: '', endDate: '', programName: '', range: '-2d', machineId: filters.machineId });
     setLimit(100);
   };
 
   const getExportParams = () => {
-      const params = {};
+      const params = { ...machineParams() };
       if (filters.startDate || filters.endDate) {
           if (filters.startDate) params.startDate = new Date(filters.startDate).toISOString();
           if (filters.endDate) params.endDate = new Date(filters.endDate).toISOString();
@@ -417,9 +420,23 @@ function Telemetry() {
           
           <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#718096' }}>Machine</label>
+                  <div style={{ position: 'relative' }}>
+                    <select
+                        name="machineId"
+                        value={filters.machineId}
+                        onChange={handleFilterChange}
+                        style={{ padding: '0.625rem 2.5rem 0.625rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0', outline: 'none', fontSize: '0.875rem', appearance: 'none', backgroundColor: 'white', minWidth: '170px' }}
+                    >
+                        {TELEMETRY_MACHINES.map(m => (<option key={m.id} value={m.id}>{m.label}</option>))}
+                    </select>
+                    <FiChevronDown style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#a0aec0' }} />
+                  </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#718096' }}>Quick Range</label>
                   <div style={{ position: 'relative' }}>
-                    <select 
+                    <select
                         name="range"
                         value={filters.range}
                         onChange={handleFilterChange}
